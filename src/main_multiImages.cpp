@@ -1,8 +1,8 @@
 /*
- * main_reduced.cpp
+ * main_multiImages.cpp
  *
- *  Created on: Aug 26, 2015
- *      Author: christian
+ *  Created on: Jun 2, 2018
+ *      Author: Christian Kehl
  */
 
 #include "main.h"
@@ -20,6 +20,19 @@
 	float _confidence = 0.90f;
 	float _distance = 8.0f;
 	float _ratio = 0.75f;
+
+	/*
+	 * SIFT
+	 * 3 octaves, contrast threshold 0.04, edge threshold 10, sigma = 1.4
+	 * octaves: 3-4 good
+	 * contrast threshold - remove jiggling/unstable pounts, 0.02-0.05 good for natural images
+	 * edge contrast - remove "doubles" along edges (typical well working: 10)
+	 * sigma - gaussian filter kernel size (1.4)
+	 */
+	int _siftOctaves = 3;
+	double _siftContrastThreshold = 0.04;
+	double _siftEdgeThreshold = 10;
+	double _siftSigma = 1.4;
 
 	/*
 	 * SURF
@@ -87,7 +100,8 @@
 	bool useGammaAdaptation=false;
 //#define MONTECARLO
 
-void registerImageToGeometry(std::string geometry_path, std::string configuration_path) {
+
+void registerImageToGeometry(std::string geometry_path, std::string configuration_path, std::map<std::string, ImageFileDescriptor> imagefile_list, std::vector<cv::Point2f>& object_keypoints, std::vector<cv::Point3f> object_points) {
 	// Load textured geometry from file
 #ifdef DEBUG
 	std::cout << "Reading node file ..." << std::endl;
@@ -179,9 +193,11 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 		CameraConfiguration cam;
 		// Open Reader, read - if return-value is negative, no file available
 		ReaderEXIF exif_reader;
+#ifdef DEBUG
 #ifndef SILENT
 		std::cout << "Camera: " << _iterator->second.exif_file << std::endl;
-#endif
+#endif // SILENT
+#endif // DEBUG
 		exif_reader.SetFileName(_iterator->second.exif_file);
 		if(exif_reader.read() != -1)
 		{
@@ -195,30 +211,16 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 			cam.SetX0(desc.GetImageWidth()/2.0 + 0.5);
 			cam.SetY0(desc.GetImageHeight()/2.0 + 0.5);
 #ifdef DEBUG
+#ifndef SILENT
 			std::cout << desc << std::endl;
-#endif
-			/*
-			 * TB changed
-			 */
+#endif // SILENT
+#endif // DEBUG
 			if(img_nr == 0)
 			{
 				renderer.SetCameraConfiguration(&cam);
 				renderer.Initialize();
 			}
 		}
-
-		bool circles_use = false;
-		if(boost::filesystem::exists(_iterator->second.circle_file))
-		{
-			correspondence_circles.clear();
-			CirclePairReader circles_reader;
-			circles_reader.SetFileName(_iterator->second.circle_file);
-			circles_reader.read();
-			correspondence_circles = circles_reader.GetCircleCorrespondences();
-			circles_use = use_circles && true;
-		}
-		else
-			circles_use = use_circles && false;
 
 #ifdef DEBUG
 		std::cout << "Construct artificial scene ..." << std::endl;
@@ -251,24 +253,22 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 		cv::Mat synthetic_image;
 		osg::Matrixd transformation = OpenCV_OSG_Glue::convertMatd(M);
 		renderer.SetCameraMatrix(transformation);
-
 		synthetic_image = renderer.GetFrameCV();
 
-
-		// --- self-similarity check ---
-		//synthetic_image = cv::imread(_iterator->second.image_file);
-		// -----------------------------
-		cv::Mat reference_image;// = cv::imread(_iterator->second.image_file);
+		//-----------------------------------------------------------------------------------
+		//	read photograph from harddisk
+		//-----------------------------------------------------------------------------------
+		cv::Mat reference_image;
 		cv::Mat ref_img = cv::imread(_iterator->second.image_file);
-		// convert both to 1-channel
-
-#ifdef DEBUG
-		std::cout << "Starting registration procedure." << std::endl;
-#endif
-
 		cv::undistort(ref_img,reference_image,cameraMatrix, distCoeffs, cv::noArray());
 		ref_img.release();
 
+		//-----------------------------------------------------------------------------------
+		//	perform uniform histogram equalisation (aka Wallis filter, see [1]) on
+		//	synthetic image and photograph.
+		//	[1] Wallis, K. F. "Seasonal adjustment and relations between variables",
+		//	Journal of the American Statistical Association, 1974, 69(345), p. 18-31
+		//-----------------------------------------------------------------------------------
 		if(wallis) {
 			cv::Mat syn_img;
 			//WallisGrayscaleChannelOnly(synthetic_image, syn_img, 3);
@@ -281,20 +281,20 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 			ref_img.release();
 		}
 
+		//-----------------------------------------------------------------------------------
+		//	Starting the image-to-image feature-based registration
+		//-----------------------------------------------------------------------------------
+#ifdef DEBUG
+		std::cout << "Starting registration procedure." << std::endl;
+#endif
 		cv::Mat img_matches;
 		int numKeyPoints = 15000;
-		//int numKeyPoints = 0;
+		//int numKeyPoints = 0;	// enable this if you want to get ALL features, not capped at 15k
 		std::vector<cv::DMatch> matches;
-
-
-
 		cv::Ptr<cv::FeatureDetector> detector, detector_additional;
 		cv::Ptr<cv::DescriptorExtractor> extractor, extractor_additional;
 		cv::Ptr<cv::OpponentColorDescriptorExtractor> OppExtractor;
 		cv::Ptr<cv::DescriptorMatcher > matcher, matcher_additional;
-
-		//cv::Mat syn_original(synthetic_image);
-		//cv::Mat ref_original(reference_image);
 
 		bool _multistage = false;
 		bool _bruteforce = false;
@@ -302,49 +302,39 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 
 		switch(feature_method)
 		{
-			case 0:
-			{
+			case 0: {
 				_flann = true;
 				//instantiate detector, extractor, matcher
-				//Typical: 3 octaves, contrast threshold 0.04, edge threshold 10, sigma = 1.6
-				detector = new cv::SiftFeatureDetector(numKeyPoints, 3, 0.02, 10, 1.4);
+				//Typical parameters:
+				//	3 octaves, contrast threshold 0.04, edge threshold 10, sigma = 1.4 [numKeyPoints, 3, 0.04, 10, 1.4]
+				//	4 octaves, contrast threshold 0.02, edge threshold 10, sigma = 1.4 [numKeyPoints, 4, 0.02, 10, 1.4]
+				detector = new cv::SiftFeatureDetector(numKeyPoints, _siftOctaves, _siftContrastThreshold, _siftEdgeThreshold, _siftSigma);
 				extractor = new cv::SiftDescriptorExtractor();
 				matcher = new cv::FlannBasedMatcher(new cv::flann::KDTreeIndexParams(4), new cv::flann::SearchParams(64));
 				break;
 			}
-			case 1:
-			{
+			case 1: {
 				_flann = true;
-				detector = new cv::SurfFeatureDetector();
-				extractor = new cv::SurfDescriptorExtractor();
-				matcher = new cv::FlannBasedMatcher(new cv::flann::KDTreeIndexParams(4), new cv::flann::SearchParams(64));
-				break;
-			}
-			case 2:
-			{
-				_bruteforce = true;
-				//detector_additional = new cv::OrbFeatureDetector(500, 1.4, 5, 31, 0, 4, cv::ORB::HARRIS_SCORE, 21);
-				//extractor_additional = new cv::OrbDescriptorExtractor();
-				//matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING, true); // ONLY FOR WTA_K = 2 (std)
-
-
-				//detector_additional = new cv::StarFeatureDetector(45,15,10,8,5);
 				/*
 				 * Constructor: Hessian Response Threshold, # Octaves, # Octave Layers, Extended (128 Responses)/ Simple (32 responses), Upright/not upright
 				 */
-				//extractor_additional = new cv::SurfDescriptorExtractor(300,4,2,true,true);
-
-
-				//detector_additional = new cv::MserFeatureDetector(5,100,30000,0.10,0.239,200,1.029,0.001,5);
+				detector = new cv::SurfFeatureDetector(_surfThreshold, _surfOctaves, _surfLayers, _surfExtended, _surfUpright);
+				extractor = new cv::SurfDescriptorExtractor(_surfThreshold, _surfOctaves, _surfLayers, _surfExtended, _surfUpright);
+				matcher = new cv::FlannBasedMatcher(new cv::flann::KDTreeIndexParams(4), new cv::flann::SearchParams(64));
+				break;
+			}
+			case 2: {
+				_bruteforce = true;
+				//	MSCR (for colour images) experimentally good parameterisation for natural images:
+				//	cv::MserFeatureDetector(5,100,30000,0.10,0.239,200,1.029,0.001,5)
+				//	alternative: cv::MserFeatureDetector(5,100,30000,0.10,0.02,255,1.01,0.003,3)
+				//	cv::BriefDescriptorExtractor(16)
 				detector_additional = new cv::MserFeatureDetector(_mscr_delta,_mscr_min_area,_mscr_max_area,_mscr_max_variation,_mscr_min_diversity,_mscr_max_evolution,_mscr_area_threshold,_mscr_min_margin,_mscr_edge_blur_size);
-				//extractor_additional = new cv::BriefDescriptorExtractor(16);
 				extractor_additional = new cv::BriefDescriptorExtractor(_briefSize);
-				//matcher_additional = new cv::BFMatcher(cv::NORM_L2, true);
 				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING, true);
 				break;
 			}
-			case 3:
-			{
+			case 3: {
 				/*
 				 * int _delta=5, int _min_area=60, int _max_area=14400,
       	  	  	  double _max_variation=0.25, double _min_diversity=.2,
@@ -352,16 +342,103 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
       	  	  	  double _min_margin=0.003, int _edge_blur_size=5
 				 */
 				_bruteforce = true;
-				//detector_additional = new cv::MserFeatureDetector(5,100,30000,0.10,0.02,255,1.01,0.003,3);
 				detector_additional = new cv::MserFeatureDetector(_mscr_delta,_mscr_min_area,_mscr_max_area,_mscr_max_variation,_mscr_min_diversity,_mscr_max_evolution,_mscr_area_threshold,_mscr_min_margin,_mscr_edge_blur_size);
 				extractor_additional = new cv::SiftDescriptorExtractor();
 				matcher_additional = new cv::BFMatcher(cv::NORM_L2, true);
 				break;
 			}
-			case 4:
-			{
-				//detector_additional = new cv::SurfFeatureDetector();
-				detector_additional = new cv::SiftFeatureDetector(numKeyPoints, 4, 0.02, 10, 1.4);
+			case 4: {
+				detector_additional = new cv::SiftFeatureDetector(numKeyPoints, _siftOctaves, _siftContrastThreshold, _siftEdgeThreshold, _siftSigma);
+				extractor_additional = new cv::BriefDescriptorExtractor(_briefSize);
+				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING, true);
+				_bruteforce = true;
+				break;
+			}
+			case 5: {
+				/*
+				 * Standard parameterisation:
+				 * table_number = 12, key_size = 20, multi_probe_level = 2
+				 * detector = new cv::FastFeatureDetector(20, true);
+				 * extractor = new cv::BriefDescriptorExtractor(32);
+				 * matcher = new cv::FlannBasedMatcher(new cv::flann::LshIndexParams(6,12,1), new cv::flann::SearchParams(64));
+				 */
+				_bruteforce = true;
+				detector_additional = new cv::FastFeatureDetector(_fastThreshold, _fastNonMaxSupression);
+				extractor_additional = new cv::BriefDescriptorExtractor(_briefSize);
+				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING, true);
+				break;
+			}
+			case 6: {
+				// STAR point parameters:
+				//	int _maxSize=45
+				//	int _responseThreshold=20 /*significant influence*/
+				//	int _lineThresholdProjected=14
+				//	int _lineThresholdBinarized=10
+				//	int _suppressNonmaxSize=13 /*little significance; kernel size*/
+
+				_bruteforce = true;
+				detector_additional = new cv::StarFeatureDetector(_starMaxSize,_starThreshold,_starLineThresholdProj,_starLineThresholdBin,_starNonMaxSupression);
+				extractor_additional = new cv::BriefDescriptorExtractor(_briefSize);
+				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING, true);
+				break;
+			}
+			case 7: {
+				_bruteforce = true;
+				detector_additional = new cv::StarFeatureDetector(_starMaxSize,_starThreshold,_starLineThresholdProj,_starLineThresholdBin,_starNonMaxSupression);
+				extractor_additional = new cv::SurfDescriptorExtractor(_surfThreshold,_surfOctaves,_surfLayers,_surfExtended,_surfUpright);
+				matcher_additional = new cv::BFMatcher(cv::NORM_L2, true);
+				break;
+			}
+			case 8: {
+				_bruteforce = true;
+				detector_additional = new cv::MserFeatureDetector(_mscr_delta,_mscr_min_area,_mscr_max_area,_mscr_max_variation,_mscr_min_diversity,_mscr_max_evolution,_mscr_area_threshold,_mscr_min_margin,_mscr_edge_blur_size);
+				extractor_additional = new cv::DCSiftDescriptorExtractor(_dcdPatch,_dcdProbs,_dcdScale,_dcdSigma,_dcdFast);
+				matcher_additional = new cv::BFMatcher(cv::NORM_L1, true);
+				break;
+			}
+			case 9: {
+				_bruteforce = true;
+				detector_additional = new cv::SiftFeatureDetector(numKeyPoints, _siftOctaves, _siftContrastThreshold, _siftEdgeThreshold, _siftSigma);
+				extractor_additional = new cv::DCSiftDescriptorExtractor(_dcdPatch,_dcdProbs,_dcdScale,_dcdSigma,_dcdFast);
+				matcher_additional = new cv::BFMatcher(cv::NORM_L1, true);
+				break;
+			}
+			case 10: {
+				_bruteforce = true;
+				detector_additional = new cv::SiftFeatureDetector(numKeyPoints, _siftOctaves, _siftContrastThreshold, _siftEdgeThreshold, _siftSigma);
+				extractor_additional = new cv::FREAK(true,true,_freak_patternsize, _freak_octaves);
+				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING2, true);
+				break;
+			}
+			case 11: {
+				_bruteforce = true;
+				detector_additional = new cv::FastFeatureDetector(_fastThreshold, _fastNonMaxSupression);
+				extractor_additional = new cv::FREAK(true,true,_freak_patternsize, _freak_octaves);
+				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING2, true);
+				break;
+			}
+			case 12: {
+				_bruteforce = true;
+				detector_additional = new cv::FastFeatureDetector(_fastThreshold, _fastNonMaxSupression);
+				extractor_additional = new cv::SiftDescriptorExtractor();
+				matcher_additional = new cv::BFMatcher(cv::NORM_L2, true);
+				break;
+			}
+			case 13: {
+				_bruteforce = true;
+				detector_additional = new cv::StarFeatureDetector();
+				extractor_additional = new cv::SiftDescriptorExtractor();
+				matcher_additional = new cv::BFMatcher(cv::NORM_L2, true);
+				break;
+			}
+			case 14: {
+				bruteforce = true;
+				detector_additional = new cv::OrbFeatureDetector(500, 1.4, 5, 31, 0, 4, cv::ORB::HARRIS_SCORE, 21);
+				extractor_additional = new cv::OrbDescriptorExtractor();
+				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING, true); // ONLY FOR WTA_K = 2 (std)
+				break;
+			}
+			case 15: {
 				/** Constructor
 				     * @param orientationNormalized enable orientation normalization
 				     * @param scaleNormalized enable scale normalization
@@ -369,121 +446,12 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 				     * @param nOctaves number of octaves covered by the detected keypoints
 				     * @param selectedPairs (optional) user defined selected pairs
 				*/
-				//extractor_additional = new cv::FREAK(true, true, _freak_patternsize, _freak_octaves);
-				//extractor_additional = new cv::FREAK();
-				extractor_additional = new cv::BriefDescriptorExtractor(_briefSize);
+				bruteforce = true;
+				detector_additional = new cv::SiftFeatureDetector(numKeyPoints, _siftOctaves, _siftContrastThreshold, _siftEdgeThreshold, _siftSigma);
+				extractor_additional = new cv::FREAK(true, true, _freak_patternsize, _freak_octaves);
 				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING, true);
-				_bruteforce = true;
 				break;
 			}
-			case 5:
-			{
-				_bruteforce = true;
-				detector_additional = new cv::FastFeatureDetector(_fastThreshold, _fastNonMaxSupression);
-				extractor_additional = new cv::BriefDescriptorExtractor(_briefSize);
-				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING, true);
-				/*
-				 * table_number = 12, key_size = 20, multi_probe_level = 2
-				 */
-
-				//_flann = true;
-				//detector = new cv::FastFeatureDetector(20, true);
-				//extractor = new cv::BriefDescriptorExtractor(32);
-				//matcher = new cv::FlannBasedMatcher(new cv::flann::LshIndexParams(6,12,1), new cv::flann::SearchParams(64));
-				break;
-			}
-			case 6:
-			{
-				//int _maxSize=45, int _responseThreshold=30 /*significant*/, int _lineThresholdProjected=10, int _lineThresholdBinarized=8, int _suppressNonmaxSize=5 /*little significance*/
-				//detector = new cv::StarFeatureDetector(45,20,14,10,13);
-				//detector_additional = new cv::StarFeatureDetector(45,20,14,10,13);
-
-				_bruteforce = true;
-				//detector_additional = new cv::SiftFeatureDetector(numKeyPoints);
-				//detector_additional = new cv::SiftFeatureDetector(numKeyPoints, 4, 0.02, 10, 1.4);
-				//detector_additional = new cv::StarFeatureDetector(45,20,14,10,13);
-				detector_additional = new cv::StarFeatureDetector(_starMaxSize,_starThreshold,_starLineThresholdProj,_starLineThresholdBin,_starNonMaxSupression);
-				extractor_additional = new cv::BriefDescriptorExtractor(_briefSize);
-				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING, true);
-
-				//_flann = true;
-				//detector = new cv::SiftFeatureDetector(numKeyPoints, 4, 0.02, 10, 1.4);
-				//extractor = new cv::BriefDescriptorExtractor(32);
-				//matcher = new cv::FlannBasedMatcher(new cv::flann::LshIndexParams(6,12,1), new cv::flann::SearchParams(64));
-				break;
-			}
-			case 7:
-			{
-				//new cv::StarFeatureDetector(45,20,14,10,13);
-				_bruteforce = true;
-				detector_additional = new cv::StarFeatureDetector(_starMaxSize,_starThreshold,_starLineThresholdProj,_starLineThresholdBin,_starNonMaxSupression);
-				extractor_additional = new cv::SurfDescriptorExtractor(_surfThreshold,_surfOctaves,_surfLayers,_surfExtended,_surfUpright);
-				matcher_additional = new cv::BFMatcher(cv::NORM_L2, true);
-				break;
-			}
-			case 8:
-			{
-				_bruteforce = true;
-				detector_additional = new cv::MserFeatureDetector(_mscr_delta,_mscr_min_area,_mscr_max_area,_mscr_max_variation,_mscr_min_diversity,_mscr_max_evolution,_mscr_area_threshold,_mscr_min_margin,_mscr_edge_blur_size);
-				extractor_additional = new cv::DCSiftDescriptorExtractor(_dcdPatch,_dcdProbs,_dcdScale,_dcdSigma,_dcdFast);
-				matcher_additional = new cv::BFMatcher(cv::NORM_L1, true);
-				break;
-			}
-			case 9:
-			{
-				_bruteforce = true;
-				detector_additional = new cv::SiftFeatureDetector(numKeyPoints, 3, 0.02, 10, 1.4);
-				extractor_additional = new cv::DCSiftDescriptorExtractor(_dcdPatch,_dcdProbs,_dcdScale,_dcdSigma,_dcdFast);
-				matcher_additional = new cv::BFMatcher(cv::NORM_L1, true);
-				break;
-			}
-			case 10:
-			{
-				_bruteforce = true;
-				detector_additional = new cv::SiftFeatureDetector(numKeyPoints, 3, 0.02, 10, 1.4);
-				extractor_additional = new cv::FREAK(true,true,_freak_patternsize, _freak_octaves);
-				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING2, true);
-				break;
-			}
-			case 11:
-			{
-				_bruteforce = true;
-				detector_additional = new cv::FastFeatureDetector(_fastThreshold, _fastNonMaxSupression);
-				extractor_additional = new cv::FREAK(true,true,_freak_patternsize, _freak_octaves);
-				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING2, true);
-				break;
-			}
-			case 12:
-			{
-				//_flann = true;
-				//detector = new cv::FastFeatureDetector(_fastThreshold, _fastNonMaxSupression);
-				//extractor = new cv::SiftDescriptorExtractor();
-				//matcher = new cv::FlannBasedMatcher(new cv::flann::KDTreeIndexParams(4), new cv::flann::SearchParams(64));
-				_bruteforce = true;
-				detector_additional = new cv::FastFeatureDetector(_fastThreshold, _fastNonMaxSupression);
-				extractor_additional = new cv::SiftDescriptorExtractor();
-				matcher_additional = new cv::BFMatcher(cv::NORM_L2, true);
-				break;
-			}
-			case 13:
-			{
-				_bruteforce = true;
-				detector_additional = new cv::StarFeatureDetector();
-				extractor_additional = new cv::SiftDescriptorExtractor();
-				matcher_additional = new cv::BFMatcher(cv::NORM_L2, true);
-				break;
-			}
-//			case 10:
-//			{
-//				_bruteforce = true;
-//				// Typical: 3 octaves, contrast threshold 0.04, edge threshold 10, sigma = 1.6
-//				detector_additional = new cv::SiftFeatureDetector(numKeyPoints, 3, 0.02, 10, 1.4);
-//				extractor = new cv::SiftDescriptorExtractor();
-//				OppExtractor = new cv::OpponentColorDescriptorExtractor(extractor);
-//				extractor_additional=NULL;
-//				matcher_additional = new cv::BFMatcher(cv::NORM_L2, true);
-//				break;
-//			}
 			default:
 			{
 				//instantiate detector, extractor, matcher
@@ -499,94 +467,64 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 		std::vector<cv::KeyPoint> ref_keypoints;
 		int num_inliers = 0;
 
-		if(vm.count("voting") && (vm["voting"].as<int>()>0))
+
+		if(_multistage || _flann)
 		{
-			VotingRegionMatcher voting_matcher;
-			voting_matcher.setConfidenceLevel(_confidence);
-			voting_matcher.setMinDistanceToEpipolar(_distance);
-			voting_matcher.setFeatureDetector(detector_additional);
-			voting_matcher.setDescriptorExtractor(extractor_additional);
-			voting_matcher.setDescriptorMatcher(matcher_additional);
-			voting_matcher.match(synthetic_image, reference_image, matches, syn_keypoints, ref_keypoints);
-		}
-		else if(circles_use)
-		{
-			ConstrainedMatcher constrained_matcher;
-			constrained_matcher.setConstraints(&correspondence_circles);
-			constrained_matcher.setConfidenceLevel(_confidence);
-			constrained_matcher.setMinDistanceToEpipolar(_distance);
-			constrained_matcher.setFeatureDetector(detector_additional);
-			constrained_matcher.setDescriptorExtractor(extractor_additional);
-			constrained_matcher.setDescriptorMatcher(matcher_additional);
-			constrained_matcher.match(synthetic_image, reference_image, matches, syn_keypoints, ref_keypoints);
-		}
-		else
-		{
-			if(_multistage || _flann)
-			{
 #ifdef DEBUG
-				std::cout << "Using FLANN robust matcher ... kNNmatch." << std::endl;
+			std::cout << "Using FLANN robust matcher ... kNNmatch." << std::endl;
 #endif
-				//Instantiate robust matcher
-				RobustMatcher rmatcher;
-				rmatcher.setConfidenceLevel(_confidence);
-				rmatcher.setMinDistanceToEpipolar(_distance);
-				rmatcher.setRatio(_ratio);
-				rmatcher.setFeatureDetector(detector);
-				rmatcher.setDescriptorExtractor(extractor);
-				rmatcher.setDescriptorMatcher(matcher);
-				rmatcher.match(synthetic_image, reference_image, matches, syn_keypoints, ref_keypoints);
+			//Instantiate robust matcher
+			RobustMatcher rmatcher;
+			rmatcher.setConfidenceLevel(_confidence);
+			rmatcher.setMinDistanceToEpipolar(_distance);
+			rmatcher.setRatio(_ratio);
+			rmatcher.setFeatureDetector(detector);
+			rmatcher.setDescriptorExtractor(extractor);
+			rmatcher.setDescriptorMatcher(matcher);
+			rmatcher.match(synthetic_image, reference_image, matches, syn_keypoints, ref_keypoints);
+			num_inliers = rmatcher.getNumberOfInliers();
+		}
 
-				//OneWayRobustMatcher rmatcher;
-				//rmatcher.setMinDistanceToEpipolar(_distance);
-				//rmatcher.setFeatureDetector(detector);
-				//rmatcher.setDescriptorExtractor(extractor);
-				//rmatcher.setDescriptorMatcher(matcher);
-				//rmatcher.match(synthetic_image, reference_image, matches, syn_keypoints, ref_keypoints);
-
-				num_inliers = rmatcher.getNumberOfInliers();
-			}
-
-			if(_multistage || _bruteforce)
-			{
+		if(_multistage || _bruteforce)
+		{
 #ifdef DEBUG
-				std::cout << "Using bruteforce accurate matcher ... no kNN." << std::endl;
+			std::cout << "Using bruteforce accurate matcher ... no kNN." << std::endl;
 #endif
-				std::vector<cv::KeyPoint> ref_cp, syn_cp;
-				std::vector<cv::DMatch> matches_add;
-				AccurateMatcher accmatcher;
-				accmatcher.setConfidenceLevel(_confidence);
-				accmatcher.setMinDistanceToEpipolar(_distance);
-				accmatcher.setFeatureDetector(detector_additional);
-				if(extractor_additional!=NULL)
-					accmatcher.setDescriptorExtractor(extractor_additional);
-				else
-					accmatcher.setDescriptorExtractorOppColor(OppExtractor);
-				accmatcher.setDescriptorMatcher(matcher_additional);
-				accmatcher.match(synthetic_image, reference_image, matches_add, syn_cp, ref_cp);
-				int ref_offset = ref_keypoints.size(), syn_offset = syn_keypoints.size();
-				for(uint i = 0; i < ref_cp.size(); i++)
-					ref_keypoints.push_back(ref_cp.at(i));
-				for(uint i = 0; i < syn_cp.size(); i++)
-					syn_keypoints.push_back(syn_cp.at(i));
-				// query = syn, train = ref
-				for(std::vector<cv::DMatch>::iterator rit = matches_add.begin(); rit != matches_add.end(); rit++)
-				{
-					rit->queryIdx+=syn_offset;
-					rit->trainIdx+=ref_offset;
-				}
-				for(uint i = 0; i < matches_add.size(); i++)
-					matches.push_back(matches_add.at(i));
-
-				num_inliers = accmatcher.getNumberOfInliers();
+			std::vector<cv::KeyPoint> ref_cp, syn_cp;
+			std::vector<cv::DMatch> matches_add;
+			AccurateMatcher accmatcher;
+			accmatcher.setConfidenceLevel(_confidence);
+			accmatcher.setMinDistanceToEpipolar(_distance);
+			accmatcher.setFeatureDetector(detector_additional);
+			if(extractor_additional!=NULL)
+				accmatcher.setDescriptorExtractor(extractor_additional);
+			else
+				accmatcher.setDescriptorExtractorOppColor(OppExtractor);
+			accmatcher.setDescriptorMatcher(matcher_additional);
+			accmatcher.match(synthetic_image, reference_image, matches_add, syn_cp, ref_cp);
+			int ref_offset = ref_keypoints.size(), syn_offset = syn_keypoints.size();
+			for(uint i = 0; i < ref_cp.size(); i++)
+				ref_keypoints.push_back(ref_cp.at(i));
+			for(uint i = 0; i < syn_cp.size(); i++)
+				syn_keypoints.push_back(syn_cp.at(i));
+			// query = syn, train = ref
+			for(std::vector<cv::DMatch>::iterator rit = matches_add.begin(); rit != matches_add.end(); rit++)
+			{
+				rit->queryIdx+=syn_offset;
+				rit->trainIdx+=ref_offset;
 			}
+			for(uint i = 0; i < matches_add.size(); i++)
+				matches.push_back(matches_add.at(i));
+
+			num_inliers = accmatcher.getNumberOfInliers();
 		}
 
 		if( (matches.empty()) || (syn_keypoints.empty()) || (ref_keypoints.empty()) )
 		{
 #ifdef DEBUG
-			std::cout << "No matching features found. Continuing ..." << std::endl;
+			std::cerr << "No matching features found. Continuing ..." << std::endl;
 #endif
+			continue;
 		}
 #ifdef DEBUG
 		else
@@ -598,54 +536,35 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 
 #ifdef DEBUG
 		std::cout << "Writing match images ..." << std::endl;
-#endif
-
 #ifndef SILENT
-		//if(_flann)
-		//{
-		//	cv::drawMatches( synthetic_image, syn_keypoints, reference_image, ref_keypoints, matches, img_matches, cv::Scalar::all(-1), cv::Scalar::all(-1), std::vector<char>(), cv::DrawMatchesFlags::NOT_DRAW_SINGLE_POINTS );
-		//}
-		//else
-		//{
-			//cv::drawMatches( synthetic_image, syn_keypoints, reference_image, ref_keypoints, matches, img_matches, cv::Scalar::all(-1), cv::Scalar::all(-1), std::vector<char>() );
-			drawMatches(synthetic_image, syn_keypoints, reference_image, ref_keypoints, matches, img_matches,cv::Scalar(255,255,255), cv::Scalar(124,0,99), 7, 2, 4, false);
-		//}
-		if(circles_use)
-		{
-			Circle* current_data = NULL;
-			for(uint circle_iter = 0; circle_iter < correspondence_circles.size(); circle_iter++)
-			{
-				current_data = &(correspondence_circles.at(circle_iter).first);
-				cv::circle(img_matches, current_data->centeri(), current_data->radiusi(), cv::Scalar::all(-1), 3, CV_AA, 0);
-				current_data = &(correspondence_circles.at(circle_iter).second);
-				cv::Point center2 = current_data->centeri();
-				center2.x+=cam.GetSX();
-				cv::circle(img_matches, center2, current_data->radiusi(), cv::Scalar::all(-1), 3, CV_AA, 0);
-			}
-		}
+		//cv::drawMatches( synthetic_image, syn_keypoints, reference_image, ref_keypoints, matches, img_matches, cv::Scalar::all(-1), cv::Scalar::all(-1), std::vector<char>() );
+		drawMatches(synthetic_image, syn_keypoints, reference_image, ref_keypoints, matches, img_matches,cv::Scalar(255,255,255), cv::Scalar(124,0,99), 7, 2, 4, false);
 		cv::imwrite(_iterator->second.temp_file, img_matches);
-#endif
+#endif // SILENT
+#endif // DEBUG
 
-
+		//------------------------------------------------------------------------------------
+		//	(2D) Point correlations are determined; now, 2D synthetic keypoints are collected
+		//	and then ray-casted on the scene object.
+		//------------------------------------------------------------------------------------
 #ifdef DEBUG
 		std::cout << "Collecting object keypoints ..." << std::endl;
 #endif
-		std::vector<cv::Point2f> object_keypoints;
+		//std::vector<cv::Point2f> object_keypoints;
+		//std::vector<cv::Point3f> object_points;
 		for(uint i = 0; i < matches.size(); i++)
 		{
 			object_keypoints.push_back(syn_keypoints.at(matches.at(i).queryIdx).pt);
 		}
-
-		std::vector<cv::Point3f> object_points;
-
-
+		//-----------------------------------------------------------------------------------
+		//	Raycasting 2D features to obtain 3D features
+		//-----------------------------------------------------------------------------------
+		renderer.clear_points_to_cast();
 #ifdef DEBUG
 		std::cout << "Raycasting feature points ..." << std::endl;
-#endif
-		// Raycast the scenery with the found synthetic 2D points
-		renderer.clear_points_to_cast();
-#ifdef DEBUG_1
+#ifndef SILENT
 		std::cout << "Adding " << object_keypoints.size() << " synthetic 2D image points ..." << std::endl;
+#endif
 #endif
 		cv::Point2f pt;
 		for(uint i = 0; i < object_keypoints.size(); i++)
@@ -654,12 +573,10 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 			renderer.add_point_to_cast(osg::Vec2( pt.x, pt.y ));
 		}
 		renderer.RaycastIntersections();
-
 #ifdef DEBUG
 		std::cout << "Retrieving " << renderer.GetNumberOfIntersections() << " 3D correspondence points ... " << std::endl;
 #endif
 		object_keypoints.clear();
-
 		osg::Vec3 geom_point;
 		cv::Point3f pt3D;
 		for(uint i = 0; i < renderer.GetNumberOfIntersections(); i++)
@@ -671,11 +588,15 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 				object_points.push_back(pt3D);
 				object_keypoints.push_back(ref_keypoints.at(matches.at(i).trainIdx).pt);
 #ifdef DEBUG
+#ifndef SILENT
 				std::cout << syn_keypoints.at(matches.at(i).queryIdx).pt << " (syn) => " << ref_keypoints.at(matches.at(i).trainIdx).pt << " (ref) => " << pt3D << std::endl;
+#endif
 #endif
 			}
 		}
 
+#ifdef DEBUG
+		std::cout << "writing feature points to disk for checking purposes." << std::endl;
 		WriterPTS obj_pts_writer;
 		obj_pts_writer.write(&object_points, _iterator->second.ptsfile);
 
@@ -690,30 +611,18 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 		featfile.open(featfile_path.c_str(), std::ios::out|std::ios::trunc);
 		if(featfile.is_open())
 		{
-#ifdef DEBUG
 			featfile << "# pts ref: " << ref_keypoints.size() << std::endl;
 			featfile << "# pts syn: " << syn_keypoints.size() << std::endl;
 			featfile << "# corresp: " << object_points.size() << std::endl;
 			featfile << "# inliers: " << num_inliers << std::endl;
 			featfile << "inlier ratio: " << (float(num_inliers)/float(object_points.size())) << std::endl;
-#else
-			featfile << ref_keypoints.size() << std::endl;
-			featfile << syn_keypoints.size() << std::endl;
-			featfile << object_points.size() << std::endl;
-			featfile << num_inliers << std::endl;
-			featfile << (float(num_inliers)/float(object_points.size())) << std::endl;
-#endif
 		}
 		featfile.close();
-
+#endif
 #ifdef DEBUG
 		std::cout << "Optimization successful." << std::endl;
 		std::cout << "Image " << img_nr << " done." << std::endl;
 #endif
-
-
-
-
 		img_nr++;
 	}
 }
@@ -1054,6 +963,9 @@ int main(int argc, char* argv[])
  * 						E N D   O F   I N I T I A L I S A T I O N   S E C T I O N
  * ========================================================================================================= */
 
+	std::vector<cv::Point2f> image_keypoints;
+	std::vector<cv::Point3f> object_keypoints;
+	registerImageToGeometry(geometry_path, configuration_path, imagefile_list, image_keypoints, object_keypoints);
 
 
 

@@ -1,8 +1,8 @@
 /*
  * main.h
  *
- *  Created on: Jun 23, 2015
- *      Author: christian
+ *  Created on: Jun 2, 2018
+ *      Author: Christian Kehl
  */
 
 #ifndef MAIN_H_
@@ -71,31 +71,14 @@
 # define _CRT_SECURE_NO_WARNINGS
 #endif
 
-//using namespace cv;
-//using namespace std;
 using namespace boost::program_options;
 
 /*
  * executes image masking
  */
-//void mask_image(ImageFileDescriptor files);
-//cv::Mat process_image(ImageFileDescriptor files, osg::Node* scene);
-//cv::Mat generatePBOImage(ImageFileDescriptor files, osg::Node* scene, CameraConfiguration* cam, cv::Mat _mat);
-//cv::Mat generateImage(ImageFileDescriptor files, osg::Node* scene, CameraConfiguration* cam, cv::Mat _mat);
+void registerImageToGeometry(std::string geometry_path, std::string configuration_path, std::map<std::string, ImageFileDescriptor> imagefile_list, std::vector<cv::Point2f>& object_keypoints, std::vector<cv::Point3f> object_points);
 cv::Mat ReadAndMorphMatrix(std::string _matrixpath, double declination);
 void StorePose(cv::Mat tvec, cv::Mat rvec, std::string _outpath);
-//void DetectFeatureVectors(cv::Mat image, FeatureList* result);
-//void DetectDescriptorVectors(cv::Mat image, FeatureList* feature_points, DescriptorList* result);
-//void BruteForceMatch(DescriptorList* ref_desc, DescriptorList* syn_desc, MatchList* ref_matches, MatchList* syn_matches);
-//void FLANNMatch(DescriptorList* ref_desc, DescriptorList* syn_desc, MatchList* ref_matches, MatchList* syn_matches);
-//void kNNMatch(DescriptorList* ref_desc, DescriptorList* syn_desc, MatchList* ref_matches, MatchList* syn_matches, float ratio);
-//void SymmetryTestRejection(MatchList* ref_matches, MatchList* syn_matches);
-//void ImageScaleRejection(FeatureList* ref_points, FeatureList* syn_points, MatchList* ref_matches, MatchList* syn_matches, cv::Size_<int> imagesize, double scale_fraction);
-//void DistanceRefusal(FeatureList* ref_points, FeatureList* syn_points, MatchList* ref_matches, MatchList* syn_matches, double distance_limit);
-//void RANSACTest(FeatureList* ref_points, FeatureList* syn_points, MatchList* ref_matches, MatchList* syn_matches, double distance, double confidence, double minInlierRatio);
-//void RatioTest(MatchList* ref_matches, MatchList* syn_matches);
-
-//void DoRaycasting(std::vector<cv::Point2f>* syn_points, std::vector<cv::Point3f>* results, CameraConfiguration* camera, osg::Node* scene, cv::Mat view);
 
 class MatchEntry : public cv::DMatch {
 public:
