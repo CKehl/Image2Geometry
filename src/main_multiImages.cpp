@@ -6,6 +6,14 @@
  */
 
 #include "main.h"
+
+cv::Mat cameraMatrix;
+cv::Mat distCoeffs;
+bool invert = true;
+uint pnp_method = 0;
+float reprojection_error = 1.0f;
+ratio_inliers = 0.67f;
+
 	uint feature_method = 0;
 	float _gamma = 1.0;
 	float _contrast = 1.0;
@@ -180,7 +188,6 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 	 * 	synthetic image, and thus (due to previous feature correlation) also a 2D-3D correspondence for
 	 * 	photograph feature points.
 	 * ==================================================================================================== */
-	// TODO: still to be refined, especially by taking out circle constraints
 	int img_nr = 0;
 	for(std::map<std::string, ImageFileDescriptor>::iterator _iterator = imagefile_list.begin(); _iterator != imagefile_list.end(); _iterator++)
 	{
@@ -627,6 +634,112 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 	}
 }
 
+std::vector<cv::Mat> PoseNPerspective(std::vector<cv::Point2f>& image_keypoints, std::vector<cv::Point3f>& object_keypoints, std::map<std::string, ImageFileDescriptor>& imagefile_list) {
+	std::vector<cv::Mat> results;
+	distCoeffs = cv::Mat::zeros(5, 1, CV_64F);
+	cv::Mat rvecs(3,1,CV_64FC1);
+	cv::Mat tvecs(3,1,CV_64FC1);
+	int img_nr = 0;
+	for(std::map<std::string, ImageFileDescriptor>::iterator _iterator = imagefile_list.begin(); _iterator != imagefile_list.end(); _iterator++)
+	{
+		results.push_back(cv::Mat::zeros(4,4,CV_64FC1));
+		if(object_keypoints.size() < 5)
+		{
+			std::cout << "Insufficient matches to run Pose Estimation algorithms." << std::endl;
+			continue;
+		}
+
+		switch(pnp_method)
+		{
+		case 0:
+		{
+			tvecs = cv::Mat::zeros(3,1,CV_64FC1);
+			rvecs = cv::Mat::zeros(3,1,CV_64FC1);
+			solvePnP_reimp(object_keypoints, image_keypoints, cameraMatrix, cv::noArray(), rvecs, tvecs, false, CV_ITERATIVE);
+			break;
+		}
+		case 1:
+		{
+			tvecs = cv::Mat::zeros(3,1,CV_64FC1);
+			rvecs = cv::Mat::zeros(3,1,CV_64FC1);
+			cv::solvePnP(object_keypoints, image_keypoints, cameraMatrix, cv::noArray(), rvecs, tvecs, false, CV_EPNP);
+	#ifdef DEBUG
+			std::cout << "After EPnP: " << std::endl;
+			std::cout << rvecs.at<double>(0,0) << " " << tvecs.at<double>(0,0) << std::endl;
+			std::cout << rvecs.at<double>(1,0) << " " << tvecs.at<double>(1,0) << std::endl;
+			std::cout << rvecs.at<double>(2,0) << " " << tvecs.at<double>(2,0) << std::endl;
+	#endif
+			solvePnP_reimp(object_keypoints, image_keypoints, cameraMatrix, cv::noArray(), rvecs, tvecs, true, CV_ITERATIVE);
+			break;
+		}
+		case 2:
+		{
+			tvecs = cv::Mat::zeros(3,1,CV_64FC1);
+			rvecs = cv::Mat::zeros(3,1,CV_64FC1);
+			cv::solvePnP(object_keypoints, image_keypoints, cameraMatrix, cv::noArray(), rvecs, tvecs, false, CV_EPNP);
+			break;
+		}
+		case 3:
+		{
+			tvecs = cv::Mat::zeros(3,1,CV_64FC1);
+			rvecs = cv::Mat::zeros(3,1,CV_64FC1);
+			cv::solvePnPRansac(cv::Mat(object_keypoints), cv::Mat(image_keypoints), cameraMatrix, distCoeffs, rvecs, tvecs, false, 500, reprojection_error, int(controlpoints_images.size()*ratio_inliers), cv::noArray(), CV_ITERATIVE);
+			break;
+		}
+		case 4:
+		{
+			cv::solvePnPRansac(cv::Mat(object_keypoints), cv::Mat(image_keypoints), cameraMatrix, distCoeffs, rvecs, tvecs, true, 500, reprojection_error, int(controlpoints_images.size()*ratio_inliers), cv::noArray(), CV_ITERATIVE);
+			break;
+		}
+		default:
+			cv::solvePnP(object_keypoints, image_keypoints, cameraMatrix, distCoeffs, rvecs, tvecs, false, CV_ITERATIVE);
+			break;
+		}
+#ifdef DEBUG
+		std::cout << rvecs.at<double>(0,0) << " " << tvecs.at<double>(0,0) << std::endl;
+		std::cout << rvecs.at<double>(1,0) << " " << tvecs.at<double>(1,0) << std::endl;
+		std::cout << rvecs.at<double>(2,0) << " " << tvecs.at<double>(2,0) << std::endl;
+#endif
+		cv::Mat transformmat(4,4,CV_64FC1);
+		cv::Mat rotmat(3,3,CV_64FC1);
+		cv::Rodrigues(rvecs, rotmat);
+
+		/*
+		 * Inversion trick: R = rotmat.t(); T = -R * tvecs
+		 * Further:
+		 * print out R and T for external uses of the pose (TODO)
+		 */
+		cv::Mat R;
+		cv::Mat T;
+		if(invert) {
+			R = rotmat.t();
+			T = -R * tvecs;
+		} else {
+			R = rotmat;
+			T = tvecs;
+		}
+
+		for(int i = 0; i < 3; i++) {
+			for(int j = 0; j < 3; j++) {
+				transformmat.at<double>(i,j) = R.at<double>(i,j);
+				//transformmat.at<double>(i,j) = rotmat.at<double>(i,j);
+			}
+			transformmat.at<double>(i,3) = T.at<double>(i,0);
+			transformmat.at<double>(3,i) = 0;
+		}
+		transformmat.at<double>(3,3) = 1.0;
+	#ifdef DEBUG
+		std::cout << "Final Matrix: " << transformmat << std::endl;
+	#endif
+		results[results.size()-1] = transformmat;
+
+		img_nr++;
+	}
+
+
+	return results;
+}
+
 int main(int argc, char* argv[])
 {
 	std::string out_ext = "png";
@@ -637,8 +750,8 @@ int main(int argc, char* argv[])
 	std::string output_folder = "";
 	std::string extension;
 
-	cv::Mat cameraMatrix(3,3,CV_64FC1);
-	cv::Mat distCoeffs(5,1,CV_64FC1);
+	cameraMatrix = cv::Mat:zeros(3,3,CV_64FC1);
+	distCoeffs = cv::Mat::zeros(5, 1, CV_64F1);
 
 	//bool single_image = true;
 	std::map<std::string, ImageFileDescriptor> imagefile_list;
@@ -693,7 +806,10 @@ int main(int argc, char* argv[])
 	    ("dcd_fast", value<int>(), "DC Descriptor - fast computation on (1) or off (0)")
 	    ("voting", value<int>(), "switches on voting")
 	    ("constraints", value<int>(), "switch for using constraints")
-	    ("wallis", value<int>(), "use (>=1) or not use (0 or nothing) the wallis filter");
+	    ("wallis", value<int>(), "use (>=1) or not use (0 or nothing) the wallis filter")
+	    ("pnp_method", value<uint>(), "0 - CV_ITERATIVE, no pre-training, 1 - CV_ITERATIVE, with pre-training, 2 - CV_EPNP, 3 - RANSAC, EPnP standard, 4 - RANSAC, LM (TBImpl)")
+	    ("error", value<float>(), "for RANSAC: target max reprojection error")
+	    ("ratio", value<float>(), "for RANSAC: target min ratio of available points to inliers fulfilling reprojection target in order to stop refinement.");
 
 	variables_map vm;
 	store(parse_command_line(argc, argv, desc), vm);
@@ -779,7 +895,7 @@ int main(int argc, char* argv[])
 					{
 						uint dotpos = strs[k].find_last_of(".");
 						fext = strs[k].substr(dotpos+1, strs[k].size());
-						if( (fext == "dat") && (strs[k].find("vecs")==strs[k].npos) && (strs[k].find("declination")==strs[k].npos) )
+						if( (fext == "dat") && (strs[k].find("vecs")==strs[k].npos) && (strs[k].find("declination")==strs[k].npos) && (strs[k].find("result")==strs[k].npos) )
 						{
 							//matrix file
 							imagefile_list[base_name].matrix_file = input_folder + strs[k];
@@ -792,6 +908,11 @@ int main(int argc, char* argv[])
 							imagefile_list[base_name].declination_file = input_folder + strs[k];
 							//std::cout << "have declination file" << std::endl;
 							//break;
+						}
+						if( (fext == "dat") && (strs[k].find("result")!=strs[k].npos) )
+						{
+							//result matrix file
+							imagefile_list[base_name].result_matrix_file = input_folder + strs[k];
 						}
 						if((fext=="tif") || (fext=="jpg") || (fext=="png") || (fext=="bmp"))
 						{
@@ -810,7 +931,6 @@ int main(int argc, char* argv[])
 					imagefile_list[base_name].ptsfile = output_folder + base_name + ".pts";
 					imagefile_list[base_name].pt2file = output_folder + base_name + ".match";
 					imagefile_list[base_name].cvfile =  output_folder + base_name + ".cv";
-					imagefile_list[base_name].circle_file = input_folder + base_name + "_circle" + ".match";
 
 					std::getline(ptsfile,line);
 				}
@@ -959,20 +1079,38 @@ int main(int argc, char* argv[])
 	if(vm.count("gamma")||vm.count("contrast")||vm.count("brightness")) {
 		useGammaAdaptation=true;
 	}
+
+	if(vm.count("pnp_method")) {
+		pnp_method = vm["pnp_method"].as<uint>();
+	} else {
+		pnp_method = 0;
+	}
+	if(vm.count("error")) {
+		reprojection_error = vm["error"].as<float>();
+	}
+	if(vm.count("ratio")) {
+		ratio_inliers = vm["ratio"].as<float>();
+	}
 /* =========================================================================================================
  * 						E N D   O F   I N I T I A L I S A T I O N   S E C T I O N
  * ========================================================================================================= */
 
 	std::vector<cv::Point2f> image_keypoints;
 	std::vector<cv::Point3f> object_keypoints;
+	// establish control points for pose-n-perspective
 	registerImageToGeometry(geometry_path, configuration_path, imagefile_list, image_keypoints, object_keypoints);
+	// compute the registration- and transformation matrix
+	std::vector<cv::Mat> transformMatrices = PoseNPerspective(image_keypoints, object_keypoints, imagefile_list);
 
-
-
-
-
-
-
+	int img_nr = 0;
+	for(std::map<std::string, ImageFileDescriptor>::iterator _iterator = imagefile_list.begin(); _iterator != imagefile_list.end(); _iterator++)
+	{
+		OCVtoDAT matrix_writer;
+		matrix_writer.SetMatrix(transformMatrices[img_nr]);
+		matrix_writer.SetFileName(_iterator->second.result_matrix_file;);
+		matrix_writer.write();
+		img_nr++;
+	}
 
 	return 0;
 }
@@ -1096,5 +1234,252 @@ void StorePose(cv::Mat tvec, cv::Mat rvec, std::string _outpath)
 #endif
 }
 
+void LevMar_Reimplementation(const CvMat* objectPoints, const CvMat* imagePoints, const CvMat* A, const CvMat* distCoeffs, CvMat* rvec, CvMat* tvec, int useExtrinsicGuess)
+{
+    const int max_iter = 200;
+    cv::Ptr<CvMat> matM, _Mxy, _m, _mn, matL;
 
+    int i, count;
+    double a[9], ar[9]={1,0,0,0,1,0,0,0,1}, R[9];
+    double MM[9], U[9], V[9], W[3];
+    CvScalar Mc;
+    double param[6];
+    CvMat matA = cvMat( 3, 3, CV_64F, a );
+    CvMat _Ar = cvMat( 3, 3, CV_64F, ar );
+    CvMat matR = cvMat( 3, 3, CV_64F, R );
+    CvMat _r = cvMat( 3, 1, CV_64F, param );
+    CvMat _t = cvMat( 3, 1, CV_64F, param + 3 );
+    CvMat _Mc = cvMat( 1, 3, CV_64F, Mc.val );
+    CvMat _MM = cvMat( 3, 3, CV_64F, MM );
+    CvMat matU = cvMat( 3, 3, CV_64F, U );
+    CvMat matV = cvMat( 3, 3, CV_64F, V );
+    CvMat matW = cvMat( 3, 1, CV_64F, W );
+    CvMat _param = cvMat( 6, 1, CV_64F, param );
+    CvMat _dpdr, _dpdt;
+
+    CV_Assert( CV_IS_MAT(objectPoints) && CV_IS_MAT(imagePoints) &&
+        CV_IS_MAT(A) && CV_IS_MAT(rvec) && CV_IS_MAT(tvec) );
+
+    count = MAX(objectPoints->cols, objectPoints->rows);
+    matM = cvCreateMat( 1, count, CV_64FC3 );
+    _m = cvCreateMat( 1, count, CV_64FC2 );
+
+    cvConvertPointsHomogeneous( objectPoints, matM );
+    cvConvertPointsHomogeneous( imagePoints, _m );
+    cvConvert( A, &matA );
+
+    CV_Assert( (CV_MAT_DEPTH(rvec->type) == CV_64F || CV_MAT_DEPTH(rvec->type) == CV_32F) &&
+        (rvec->rows == 1 || rvec->cols == 1) && rvec->rows*rvec->cols*CV_MAT_CN(rvec->type) == 3 );
+
+    CV_Assert( (CV_MAT_DEPTH(tvec->type) == CV_64F || CV_MAT_DEPTH(tvec->type) == CV_32F) &&
+        (tvec->rows == 1 || tvec->cols == 1) && tvec->rows*tvec->cols*CV_MAT_CN(tvec->type) == 3 );
+
+    _mn = cvCreateMat( 1, count, CV_64FC2 );
+    _Mxy = cvCreateMat( 1, count, CV_64FC2 );
+
+    // normalize image points
+    // (unapply the intrinsic matrix transformation and distortion)
+    cvUndistortPoints( _m, _mn, &matA, distCoeffs, 0, &_Ar );
+
+    if( useExtrinsicGuess )
+    {
+        CvMat _r_temp = cvMat(rvec->rows, rvec->cols,
+            CV_MAKETYPE(CV_64F,CV_MAT_CN(rvec->type)), param );
+        CvMat _t_temp = cvMat(tvec->rows, tvec->cols,
+            CV_MAKETYPE(CV_64F,CV_MAT_CN(tvec->type)), param + 3);
+        cvConvert( rvec, &_r_temp );
+        cvConvert( tvec, &_t_temp );
+    }
+    else
+    {
+        Mc = cvAvg(matM);
+        cvReshape( matM, matM, 1, count );
+        cvMulTransposed( matM, &_MM, 1, &_Mc );
+        cvSVD( &_MM, &matW, 0, &matV, CV_SVD_MODIFY_A + CV_SVD_V_T );
+
+        // initialize extrinsic parameters
+        if( W[2]/W[1] < 1e-3 || count < 4 )
+        {
+            // a planar structure case (all M's lie in the same plane)
+            double tt[3], h[9], h1_norm, h2_norm;
+            CvMat* R_transform = &matV;
+            CvMat T_transform = cvMat( 3, 1, CV_64F, tt );
+            CvMat matH = cvMat( 3, 3, CV_64F, h );
+            CvMat _h1, _h2, _h3;
+
+            if( V[2]*V[2] + V[5]*V[5] < 1e-10 )
+                cvSetIdentity( R_transform );
+
+            if( cvDet(R_transform) < 0 )
+                cvScale( R_transform, R_transform, -1 );
+
+            cvGEMM( R_transform, &_Mc, -1, 0, 0, &T_transform, CV_GEMM_B_T );
+
+            for( i = 0; i < count; i++ )
+            {
+                const double* Rp = R_transform->data.db;
+                const double* Tp = T_transform.data.db;
+                const double* src = matM->data.db + i*3;
+                double* dst = _Mxy->data.db + i*2;
+
+                dst[0] = Rp[0]*src[0] + Rp[1]*src[1] + Rp[2]*src[2] + Tp[0];
+                dst[1] = Rp[3]*src[0] + Rp[4]*src[1] + Rp[5]*src[2] + Tp[1];
+            }
+
+            cvFindHomography( _Mxy, _mn, &matH );
+
+            if( cvCheckArr(&matH, CV_CHECK_QUIET) )
+            {
+                cvGetCol( &matH, &_h1, 0 );
+                _h2 = _h1; _h2.data.db++;
+                _h3 = _h2; _h3.data.db++;
+                h1_norm = sqrt(h[0]*h[0] + h[3]*h[3] + h[6]*h[6]);
+                h2_norm = sqrt(h[1]*h[1] + h[4]*h[4] + h[7]*h[7]);
+
+                cvScale( &_h1, &_h1, 1./MAX(h1_norm, DBL_EPSILON) );
+                cvScale( &_h2, &_h2, 1./MAX(h2_norm, DBL_EPSILON) );
+                cvScale( &_h3, &_t, 2./MAX(h1_norm + h2_norm, DBL_EPSILON));
+                cvCrossProduct( &_h1, &_h2, &_h3 );
+
+                cvRodrigues2( &matH, &_r );
+                cvRodrigues2( &_r, &matH );
+                cvMatMulAdd( &matH, &T_transform, &_t, &_t );
+                cvMatMul( &matH, R_transform, &matR );
+            }
+            else
+            {
+                cvSetIdentity( &matR );
+                cvZero( &_t );
+            }
+
+            cvRodrigues2( &matR, &_r );
+        }
+        else
+        {
+            // non-planar structure. Use DLT method
+            double* L;
+            double LL[12*12], LW[12], LV[12*12], sc;
+            CvMat _LL = cvMat( 12, 12, CV_64F, LL );
+            CvMat _LW = cvMat( 12, 1, CV_64F, LW );
+            CvMat _LV = cvMat( 12, 12, CV_64F, LV );
+            CvMat _RRt, _RR, _tt;
+            CvPoint3D64f* M = (CvPoint3D64f*)matM->data.db;
+            CvPoint2D64f* mn = (CvPoint2D64f*)_mn->data.db;
+
+            matL = cvCreateMat( 2*count, 12, CV_64F );
+            L = matL->data.db;
+
+            for( i = 0; i < count; i++, L += 24 )
+            {
+                double x = -mn[i].x, y = -mn[i].y;
+                L[0] = L[16] = M[i].x;
+                L[1] = L[17] = M[i].y;
+                L[2] = L[18] = M[i].z;
+                L[3] = L[19] = 1.;
+                L[4] = L[5] = L[6] = L[7] = 0.;
+                L[12] = L[13] = L[14] = L[15] = 0.;
+                L[8] = x*M[i].x;
+                L[9] = x*M[i].y;
+                L[10] = x*M[i].z;
+                L[11] = x;
+                L[20] = y*M[i].x;
+                L[21] = y*M[i].y;
+                L[22] = y*M[i].z;
+                L[23] = y;
+            }
+
+            cvMulTransposed( matL, &_LL, 1 );
+            cvSVD( &_LL, &_LW, 0, &_LV, CV_SVD_MODIFY_A + CV_SVD_V_T );
+            _RRt = cvMat( 3, 4, CV_64F, LV + 11*12 );
+            cvGetCols( &_RRt, &_RR, 0, 3 );
+            cvGetCol( &_RRt, &_tt, 3 );
+            if( cvDet(&_RR) < 0 )
+                cvScale( &_RRt, &_RRt, -1 );
+            sc = cvNorm(&_RR);
+            cvSVD( &_RR, &matW, &matU, &matV, CV_SVD_MODIFY_A + CV_SVD_U_T + CV_SVD_V_T );
+            cvGEMM( &matU, &matV, 1, 0, 0, &matR, CV_GEMM_A_T );
+            cvScale( &_tt, &_t, cvNorm(&matR)/sc );
+            cvRodrigues2( &matR, &_r );
+        }
+    }
+
+    cvReshape( matM, matM, 3, 1 );
+    cvReshape( _mn, _mn, 2, 1 );
+
+#ifdef DEBUG
+    std::cout << "Max Iterations: " << max_iter << ", Target error rate: " << DBL_EPSILON << std::endl;
+#endif
+
+    // refine extrinsic parameters using iterative algorithm
+    CvLevMarq solver( 6, count*2, cvTermCriteria(CV_TERMCRIT_EPS+CV_TERMCRIT_ITER,max_iter,DBL_EPSILON), true);
+    cvCopy( &_param, solver.param );
+
+    uint iter_done = 0; double repr_err = 0;
+
+    for(;;)
+    {
+        CvMat *matJ = 0, *_err = 0;
+        const CvMat *__param = 0;
+        bool proceed = solver.update( __param, matJ, _err );
+        cvCopy( __param, &_param );
+        if( !proceed || !_err )
+            break;
+        cvReshape( _err, _err, 2, 1 );
+        if( matJ )
+        {
+            cvGetCols( matJ, &_dpdr, 0, 3 );
+            cvGetCols( matJ, &_dpdt, 3, 6 );
+            cvProjectPoints2( matM, &_r, &_t, &matA, distCoeffs,
+                              _err, &_dpdr, &_dpdt, 0, 0, 0 );
+        }
+        else
+        {
+            cvProjectPoints2( matM, &_r, &_t, &matA, distCoeffs,
+                              _err, 0, 0, 0, 0, 0 );
+        }
+        cvSub(_err, _m, _err);
+        cvReshape( _err, _err, 1, 2*count );
+
+        repr_err = cvAvg(_err).val[0];
+
+        iter_done++;
+    }
+
+#ifdef DEBUG
+    std::cout << "Iterations done: " << iter_done << ", Error rate: " << repr_err << std::endl;
+#endif
+
+    cvCopy( solver.param, &_param );
+
+    _r = cvMat( rvec->rows, rvec->cols,
+        CV_MAKETYPE(CV_64F,CV_MAT_CN(rvec->type)), param );
+    _t = cvMat( tvec->rows, tvec->cols,
+        CV_MAKETYPE(CV_64F,CV_MAT_CN(tvec->type)), param + 3 );
+
+    cvConvert( &_r, rvec );
+    cvConvert( &_t, tvec );
+}
+
+bool solvePnP_reimp(cv::InputArray _opoints, cv::InputArray _ipoints, cv::InputArray _cameraMatrix, cv::InputArray _distCoeffs, cv::OutputArray _rvec, cv::OutputArray _tvec, bool useExtrinsicGuess, int flags) {
+    cv::Mat opoints = _opoints.getMat(), ipoints = _ipoints.getMat();
+    int npoints = std::max(opoints.checkVector(3, CV_32F), opoints.checkVector(3, CV_64F));
+    CV_Assert( npoints >= 0 && npoints == std::max(ipoints.checkVector(2, CV_32F), ipoints.checkVector(2, CV_64F)) );
+    _rvec.create(3, 1, CV_64F);
+    _tvec.create(3, 1, CV_64F);
+    cv::Mat cameraMatrix = _cameraMatrix.getMat(), distCoeffs = _distCoeffs.getMat();
+
+    if (flags == CV_ITERATIVE)
+    {
+        CvMat c_objectPoints = opoints, c_imagePoints = ipoints;
+        CvMat c_cameraMatrix = cameraMatrix, c_distCoeffs = distCoeffs;
+        CvMat c_rvec = _rvec.getMat(), c_tvec = _tvec.getMat();
+        LevMar_Reimplementation(&c_objectPoints, &c_imagePoints, &c_cameraMatrix,
+                                     c_distCoeffs.rows*c_distCoeffs.cols ? &c_distCoeffs : 0,
+                                     &c_rvec, &c_tvec, useExtrinsicGuess );
+        return true;
+    }
+    else
+        CV_Error(CV_StsBadArg, "The flags argument must be one of CV_ITERATIVE or CV_EPNP");
+    return false;
+}
 
