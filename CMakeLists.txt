@@ -1,7 +1,5 @@
 cmake_minimum_required(VERSION 2.8)
-project(CGEL)
-
-##cmakedefine USE_MYMATH
+project(Image2Geometry)
 
 set(CMAKE_CXX_FLAGS "-Wall")
 set(CMAKE_CXX_FLAGS_DEBUG "-g -DDEBUG")
@@ -21,7 +19,6 @@ set(CMAKE_MODULE_PATH ${CMAKE_CURRENT_SOURCE_DIR}/CMakeModules ${CMAKE_MODULE_PA
 set(ADDITIONAL_HEADERS "")
 set(ADDITIONAL_SOURCES "")
 set(CUDA_SOURCES "")
-set(KERNEL_O "")
 set(SOURCE_FOLDER src)
 set(ADDITIONAL_LIBRARY_PATHS "")
 set(ADDITIONAL_LINKER_FLAGS "")
@@ -49,15 +46,13 @@ if(CUDA_FOUND)
     set(ADDITIONAL_CXX_FLAGS "${ADDITIONAL_CXX_FLAGS} -DCOMPILE_WITH_CUDA")
   endif(CUDA_USE_CUDA_BUILD MATCHES ON)
   #list(APPEND CUDA_SOURCES ${SOURCE_FOLDER}/CUDAEnv.cpp)
-  #list(APPEND CUDA_SOURCES ${SOURCE_FOLDER}/GeometricPrimitives.cpp)
-  #list(APPEND CUDA_SOURCES ${SOURCE_FOLDER}/Vector.cpp)
-  list(APPEND CUDA_SOURCES ${SOURCE_FOLDER}/kernels.cu)
+  #list(APPEND CUDA_SOURCES ${SOURCE_FOLDER}/kernels.cu)
   set(CUDA_ATTACH_VS_BUILD_RULE_TO_CUDA_FILE ON)
   set(CUDA_VERBOSE_BUILD ON)
   set(CUDA_PROPAGATE_HOST_FLAGS OFF)
 endif(CUDA_FOUND)
 
-find_package(OSG)
+find_package(OSG_)
 find_package(OpenThreads)
 if(OSG_FOUND)
   list(APPEND ADDITIONAL_LIBRARY_PATHS $ENV{OSG_LIB})
@@ -96,12 +91,6 @@ if(OSG_FOUND)
   list(APPEND INCLUDE_DIRS ${OSG_GEN_INCLUDE_DIR})
   #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCOMPILE_WITH_OSG")
   set(ADDITIONAL_CXX_FLAGS "${ADDITIONAL_CXX_FLAGS} -DCOMPILE_WITH_OSG")
-  list(APPEND ADDITIONAL_HEADERS ${SOURCE_FOLDER}/ReaderOSG.h)
-  list(APPEND ADDITIONAL_HEADERS ${SOURCE_FOLDER}/WriterOSG.h)
-  list(APPEND ADDITIONAL_HEADERS ${SOURCE_FOLDER}/WriterOSGLOD.h)
-  list(APPEND ADDITIONAL_SOURCES ${SOURCE_FOLDER}/ReaderOSG.cpp)
-  list(APPEND ADDITIONAL_SOURCES ${SOURCE_FOLDER}/WriterOSG.cpp)
-  list(APPEND ADDITIONAL_SOURCES ${SOURCE_FOLDER}/WriterOSGLOD.cpp)
 
   # Add include directories needed to use OSG.
   INCLUDE_DIRECTORIES(${OSG_INCLUDE_DIR} ${OSG_GEN_INCLUDE_DIR})
@@ -112,120 +101,50 @@ if(OSG_FOUND)
   message(${CMAKE_CXX_FLAGS})
 endif(OSG_FOUND)
 
-find_package(VTK)
-if(VTK_FOUND)
-  message(${VTK_USE_FILE})
-  include(${VTK_USE_FILE})
+# OpenCV_FOUND - True if OpenCV was found
+# OpenCV_INCLUDE_DIR - Directory containing the OpenCV include files
+# OpenCV_LIBRARIES - Libraries within OpenCV
+# OpenCV_LINK_DIRECTORIES - Directory holding the libraries
+find_package(OpenCV)
+if(OpenCV_FOUND)
+  message("Using OpenCV interface.")
+  list(APPEND ADDITIONAL_LIBRARY_PATHS ${OpenCV_LINK_DIRECTORIES})
+  #set(OpenCV_COMPONENTS "")
+  #list(APPEND OpenCV_COMPONENTS opencv_calib3d)
+  #list(APPEND OpenCV_COMPONENTS opencv_contrib)
+  #list(APPEND OpenCV_COMPONENTS opencv_core)
+  #list(APPEND OpenCV_COMPONENTS opencv_features2d)
+  #list(APPEND OpenCV_COMPONENTS opencv_flann)
+  #list(APPEND OpenCV_COMPONENTS opencv_gpu)
+  #list(APPEND OpenCV_COMPONENTS opencv_highgui)
+  #list(APPEND OpenCV_COMPONENTS opencv_imgproc)
+  #list(APPEND OpenCV_COMPONENTS opencv_legacy)
+  #list(APPEND OpenCV_COMPONENTS opencv_ml)
+  #list(APPEND OpenCV_COMPONENTS opencv_nonfree)
+  #list(APPEND OpenCV_COMPONENTS opencv_objdetect)
+  #list(APPEND OpenCV_COMPONENTS opencv_ocl)
+  #list(APPEND OpenCV_COMPONENTS opencv_photo)
+  #list(APPEND OpenCV_COMPONENTS opencv_stitching)
+  #list(APPEND OpenCV_COMPONENTS opencv_superres)
+  #list(APPEND OpenCV_COMPONENTS opencv_video)
+  #list(APPEND OpenCV_COMPONENTS opencv_videostab)
+  #list(APPEND LIBRARIES ${OpenCV_COMPONENTS})
+  list(APPEND LIBRARIES ${OpenCV_LIBS})
+  list(APPEND INCLUDE_DIRS ${OpenCV_INCLUDE_DIRS})
 
-  set(VTK_LIBRARIES "")
-
-  LIST(APPEND VTK_LIBRARIES vtkCharts)
-  LIST(APPEND VTK_LIBRARIES vtkCommon)
-  LIST(APPEND VTK_LIBRARIES vtkDICOMParser)
-  LIST(APPEND VTK_LIBRARIES vtkFiltering)
-  LIST(APPEND VTK_LIBRARIES vtkfreetype)
-  LIST(APPEND VTK_LIBRARIES vtkGenericFiltering)
-  LIST(APPEND VTK_LIBRARIES vtkGeovis)
-  LIST(APPEND VTK_LIBRARIES vtkGraphics)
-  LIST(APPEND VTK_LIBRARIES vtkHybrid)
-  LIST(APPEND VTK_LIBRARIES vtkImaging)
-  LIST(APPEND VTK_LIBRARIES vtkInfovis)
-  LIST(APPEND VTK_LIBRARIES vtkIO)
-  LIST(APPEND VTK_LIBRARIES vtkNetCDF)
-  LIST(APPEND VTK_LIBRARIES vtkParallel)
-  LIST(APPEND VTK_LIBRARIES vtkRendering)
-  LIST(APPEND VTK_LIBRARIES vtkViews)
-  LIST(APPEND VTK_LIBRARIES vtkVolumeRendering)
-  LIST(APPEND VTK_LIBRARIES vtkWidgets)
-  LIST(APPEND VTK_LIBRARIES vtkalglib)
-  LIST(APPEND VTK_LIBRARIES vtkexpat)
-  LIST(APPEND VTK_LIBRARIES vtkmetaio)
-  LIST(APPEND VTK_LIBRARIES vtkverdict)
-  LIST(APPEND VTK_LIBRARIES vtksys)
-  LIST(APPEND VTK_LIBRARIES vtkjpeg)
-  LIST(APPEND VTK_LIBRARIES vtkftgl)
-  LIST(APPEND VTK_LIBRARIES vtklibxml2)
-  LIST(APPEND VTK_LIBRARIES vtkpng)
-  LIST(APPEND VTK_LIBRARIES vtkproj4)
-  LIST(APPEND VTK_LIBRARIES vtktiff)
-  LIST(APPEND VTK_LIBRARIES vtkzlib)
-
-  #set(ADDITIONAL_LIBRARY_PATHS "${ADDITIONAL_LIBRARY_PATHS} ${VTK_LIBRARY_DIRS}")
-  list(APPEND ADDITIONAL_LIBRARY_PATHS ${VTK_LIBRARY_DIRS})
-  #set(LIBRARIES ${LIBRARIES} "${VTK_LIBRARIES}")
-  list(APPEND LIBRARIES ${VTK_LIBRARIES})
-  list(APPEND INCLUDE_DIRS ${VTK_INCLUDE_DIRS})
-  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCOMPILE_WITH_VTK")
-  set (ADDITIONAL_CXX_FLAGS "${ADDITIONAL_CXX_FLAGS} -DCOMPILE_WITH_VTK")
-  list(APPEND ADDITIONAL_HEADERS ${SOURCE_FOLDER}/ReaderVTK.h)
-  list(APPEND ADDITIONAL_HEADERS ${SOURCE_FOLDER}/ReaderVTKLOD.h)
-  #list(APPEND ADDITIONAL_HEADERS ${SOURCE_FOLDER}/WriterVTKLOD.h)
-  list(APPEND ADDITIONAL_HEADERS ${SOURCE_FOLDER}/WriterVTK.h)
-  list(APPEND ADDITIONAL_HEADERS ${SOURCE_FOLDER}/WriterVTKSimpleHierarchy.h)
-  list(APPEND ADDITIONAL_HEADERS ${SOURCE_FOLDER}/OoCInteractorStyle.h)
-  list(APPEND ADDITIONAL_SOURCES ${SOURCE_FOLDER}/ReaderVTK.cpp)
-  list(APPEND ADDITIONAL_SOURCES ${SOURCE_FOLDER}/ReaderVTKLOD.cpp)
-  #list(APPEND ADDITIONAL_HEADERS ${SOURCE_FOLDER}/WriterVTKLOD.cpp)
-  list(APPEND ADDITIONAL_SOURCES ${SOURCE_FOLDER}/WriterVTK.cpp)
-  list(APPEND ADDITIONAL_SOURCES ${SOURCE_FOLDER}/WriterVTKSimpleHierarchy.cpp)
-  list(APPEND ADDITIONAL_SOURCES ${SOURCE_FOLDER}/OoCInteractorStyle.cpp)
-  message(${CMAKE_CXX_FLAGS})
-  link_libraries(${VTK_LIBRARIES})
-endif(VTK_FOUND)
-
-find_package(CGAL)
-if(CGAL_FOUND)
-  message(${CGAL_USE_FILE})
-  include(${CGAL_USE_FILE})
-  #set(ADDITIONAL_LIBRARY_PATHS "${ADDITIONAL_LIBRARY_PATHS} ${CGAL_LIBRARIES_DIR}")
-  #set(LIBRARIES "${LIBRARIES} ${CGAL_LIBRARIES} gmp core++ mpfr")
-  list(APPEND ADDITIONAL_LIBRARY_PATHS ${CGAL_LIBRARIES_DIR})
-  list(APPEND CGAL_LIBRARIES CGAL_Core)
-  list(APPEND CGAL_LIBRARIES CGAL_ImageIO)
-  list(APPEND LIBRARIES ${CGAL_LIBRARIES})
-  set(CORE_LIBRARIES "")
-  list(APPEND CORE_LIBRARIES gmp)
-  list(APPEND CORE_LIBRARIES core++)
-  list(APPEND CORE_LIBRARIES mpfr)
-  list(APPEND LIBRARIES ${CORE_LIBRARIES})
-  list(APPEND INCLUDE_DIRS ${CGAL_INCLUDE_DIRS})
-  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCOMPILE_WITH_CGAL -frounding-math")
-  #set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -frounding-math")
-  set (ADDITIONAL_CXX_FLAGS "${ADDITIONAL_CXX_FLAGS} -DCOMPILE_WITH_CGAL")
-  set (ADDITIONAL_LINKER_FLAGS "${ADDITIONAL_LINKER_FLAGS} -frounding-math")
-  #message(${CMAKE_CXX_FLAGS})
-  add_definitions(${CGAL_3RD_PARTY_DEFINITIONS}  ${CGAL_DEFINITIONS} "-frounding-math" "-DCOMPILE_WITH_CGAL")
-  link_libraries(${CGAL_LIBRARIES} ${CORE_LIBRARIES})
-endif(CGAL_FOUND)
-
-#find_package(LIB3DS)
-set(LIB3DS_FOUND FALSE)
-if(LIB3DS_FOUND)
-  message("Using 3Ds interface")
-  #set(ADDITIONAL_LIBRARY_PATHS "${ADDITIONAL_LIBRARY_PATHS} ${LIB3DS_LIBRARIES_DIR}")
-  #set(LIBRARIES "${LIBRARIES} 3ds")
-  list(APPEND ADDITIONAL_LIBRARY_PATHS ${LIB3DS_LIBRARIES_DIR})
-  list(APPEND LIBRARIES 3ds)
-  list(APPEND INCLUDE_DIRS ${LIB3DS_INCLUDE_DIRS})
-  #set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -DCOMPILE_WITH_3DS")
-  set (ADDITIONAL_CXX_FLAGS "${ADDITIONAL_CXX_FLAGS} -DCOMPILE_WITH_3DS")
-  list(APPEND ADDITIONAL_HEADERS ${SOURCE_FOLDER}/Reader3DS.h)
-  list(APPEND ADDITIONAL_HEADERS ${SOURCE_FOLDER}/Writer3DS.h)
-  list(APPEND ADDITIONAL_SOURCES ${SOURCE_FOLDER}/Reader3DS.cpp)
-  list(APPEND ADDITIONAL_SOURCES ${SOURCE_FOLDER}/Writer3DS.cpp)
-  #message(${CMAKE_CXX_FLAGS})
-  # Add include directories needed to use OSG.
-  INCLUDE_DIRECTORIES(${LIB3DS_INCLUDE_DIRS})
-  # Add link directories needed to use OSG.
-  LINK_DIRECTORIES(${LIB3DS_LIBRARIES_DIR})
-  LINK_LIBRARIES(3ds)
-endif(LIB3DS_FOUND)
+  message( STATUS "OpenCV include dir: ${OpenCV_INCLUDE_DIRS}")
+  INCLUDE_DIRECTORIES(${OpenCV_INCLUDE_DIRS})
+  message( STATUS "OpenCV library dir: ${OpenCV_INSTALL_PATH}")
+  LINK_DIRECTORIES(${OpenCV_INSTALL_PATH})
+  message( STATUS "OpenCV libraries: ${OpenCV_LIBS}")
+  LINK_LIBRARIES(${OpenCV_LIBS})
+endif(OpenCV_FOUND)
 
 # FLANN_FOUND - True if FLANN was found.
 # FLANN_INCLUDE_DIRS - Directories containing the FLANN include files.
 # FLANN_LIBRARIES - Libraries needed to use FLANN.
 # FLANN_DEFINITIONS - Compiler flags for FLANN.
-find_package(FLANN)
+find_package(FLANN_)
 if(FLANN_FOUND)
   message("Using FLANN interface.")
   option(FLANN_USE_FLANN_LIB "Determine to use FLANN code (good for global link) or  not (for local build and wrapping)" ON)
@@ -245,7 +164,7 @@ endif(FLANN_FOUND)
 #  TIFF_INCLUDE_DIR, where to find tiff.h, etc.
 #  TIFF_LIBRARIES, libraries to link against to use TIFF.
 #  TIFF_FOUND, If false, do not try to use TIFF.
-find_package(TIFF REQUIRED)
+find_package(TIFF)
 if(TIFF_FOUND)
   list(APPEND ADDITIONAL_LIBRARY_PATHS ${TIFF_LIBRARY_DIR})
   #list(APPEND LIBRARIES ${TIFF_LIBRARIES})
@@ -258,40 +177,21 @@ if(TIFF_FOUND)
   LINK_LIBRARIES(${TIFF_LIBRARY_NAME})
 endif(TIFF_FOUND)
 
-#  ARMADILLO_FOUND - set to true if the library is found
-#  ARMADILLO_INCLUDE_DIRS - list of required include directories
-#  ARMADILLO_LIBRARIES - list of libraries to be linked
-#  ARMADILLO_VERSION_MAJOR - major version number
-#  ARMADILLO_VERSION_MINOR - minor version number
-#  ARMADILLO_VERSION_PATCH - patch version number
-#  ARMADILLO_VERSION_STRING - version number as a string (ex: "1.0.4")
-#  ARMADILLO_VERSION_NAME - name of the version (ex: "Antipodean Antileech")
-find_package(Armadillo REQUIRED)
-if(ARMADILLO_FOUND)
-  #set(LIBRARIES "${LIBRARIES} ${ARMADILLO_LIBRARIES}")
-  list(APPEND LIBRARIES ${ARMADILLO_LIBRARIES})
-  list(APPEND INCLUDE_DIRS ${ARMADILLO_INCLUDE_DIRS})
-  #set(INCLUDE_DIRS "${INCLUDE_DIRS} ${ARMADILLO_INCLUDE_DIRS}")
-  message("Use Armadillo.")
+#  JPEG_INCLUDE_DIR, where to find tiff.h, etc.
+#  JPEG_LIBRARIES, libraries to link against to use TIFF.
+#  JPEG_FOUND, If false, do not try to use TIFF.
+find_package(JPEG)
+if(TIFF_FOUND)
+  list(APPEND ADDITIONAL_LIBRARY_PATHS ${TIFF_LIBRARY_DIR})
+  #list(APPEND LIBRARIES ${TIFF_LIBRARIES})
+  list(APPEND LIBRARIES ${TIFF_LIBRARY_NAME})
+  list(APPEND INCLUDE_DIRS ${TIFF_INCLUDE_DIR})
+  message("Use libTIFF.")
   message(${CMAKE_CXX_FLAGS})
-  link_libraries(${ARMADILLO_LIBRARIES})
-endif(ARMADILLO_FOUND)
-
-find_package(ARMA_MKL)
-if(MKL_FOUND)
-  list(APPEND 3RDPARTY_LIBRARIES ${MKL_LIBRARIES})
-  #list(APPEND 3RDPARTY_INCLUDE_PATHS ${MKL_INCLUDE_DIRS})
-  #INCLUDE_DIRECTORIES(${MKL_INCLUDE_DIRS})
-  LINK_LIBRARIES(${MKL_LIBRARIES})
-endif(MKL_FOUND)
-
-#eigen library
-find_package(Eigen3)
-if(EIGEN3_FOUND)
-  list(APPEND 3RDPARTY_INCLUDE_PATHS ${EIGEN3_INCLUDE_DIR})
-  message("Use Eigen3.")
-  INCLUDE_DIRECTORIES(${EIGEN3_INCLUDE_DIR})
-endif(EIGEN3_FOUND)
+  #message(${TIFF_LIBRARY_DIR})
+  #message(${TIFF_LIBRARY_NAME})
+  LINK_LIBRARIES(${TIFF_LIBRARY_NAME})
+endif(TIFF_FOUND)
 
 find_package(Boost REQUIRED)
 if(Boost_FOUND)
@@ -300,6 +200,7 @@ if(Boost_FOUND)
   list(APPEND LIBRARIES ${Boost_LIBRARIES})
   set(Boost_SUBSYSTEM "")
   list(APPEND Boost_SUBSYSTEM boost_system)
+  list(APPEND Boost_SUBSYSTEM boost_program_options)
   list(APPEND Boost_SUBSYSTEM boost_filesystem)
   list(APPEND Boost_SUBSYSTEM boost_regex)
   list(APPEND Boost_SUBSYSTEM boost_thread)
@@ -309,30 +210,6 @@ if(Boost_FOUND)
   link_directories(${BOOST_LIBRARYDIR})
   link_libraries(${Boost_LIBRARIES} ${Boost_SUBSYSTEM})
 endif(Boost_FOUND)
-
-#  LAPACK_FOUND - set to true if a library implementing the LAPACK interface
-#    is found
-#  LAPACK_LINKER_FLAGS - uncached list of required linker flags (excluding -l
-#    and -L).
-#  LAPACK_LIBRARIES - uncached list of libraries (using full path name) to
-#    link against to use LAPACK
-#  LAPACK95_LIBRARIES - uncached list of libraries (using full path name) to
-#    link against to use LAPACK95
-#  LAPACK95_FOUND - set to true if a library implementing the LAPACK f95
-#    interface is found
-#  BLA_STATIC  if set on this determines what kind of linkage we do (static)
-#  BLA_VENDOR  if set checks only the specified vendor, if not set checks
-#     all the possibilities
-#  BLA_F95     if set on tries to find the f95 interfaces for BLAS/LAPACK
-### List of vendors (BLA_VENDOR) valid in this module
-##  Intel(mkl), ACML,Apple, NAS, Generic
-#find_package(LAPACK REQUIRED)
-#if(LAPACK_FOUND)
-#  set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} ${LAPACK_LINKER_FLAGS}")
-#  set(LIBRARIES "${LIBRARIES} ${LAPACK_LIBRARIES}")
-#  message("Use LAPACK.")
-#  message(${CMAKE_CXX_FLAGS})
-#endif(LAPACK_FOUND)
 
 FIND_PACKAGE( OpenMP REQUIRED)
 if(OPENMP_FOUND)
@@ -345,9 +222,6 @@ if(OPENMP_FOUND)
   message(${CMAKE_CXX_FLAGS})
 endif(OPENMP_FOUND)
 
-#use_package(CGAL)
-#include(${OSG_USE_FILE})
-
 list(REMOVE_DUPLICATES ADDITIONAL_LIBRARY_PATHS)
 list(REMOVE_DUPLICATES INCLUDE_DIRS)
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${ADDITIONAL_CXX_FLAGS}")
@@ -357,9 +231,6 @@ set(CMAKE_EXE_LINKER_FLAGS_DEBUG "${CMAKE_EXE_LINKER_FLAGS_DEBUG} ${ADDITIONAL_C
 #message(${CMAKE_CXX_FLAGS})
 #message(${INCLUDE_DIRS})
 
-#set(PROGRAM ComputerGraphicsElementsLibrary)
-set(LIB_NAME CGEL)
-#include_directories( ${OSG_INCLUDE_DIR} ${OSG_GEN_INCLUDE_DIR} )
 OPTION(BUILD_SHARED_LIBS "Build shared libraries." ON)
 SET(CMAKE_INCLUDE_PATH ${CMAKE_INCLUDE_PATH} CACHE STRING "You may add additional search paths here. Use ; to separate multiple paths.")
 SET(CMAKE_LIBRARY_PATH ${CMAKE_LIBRARY_PATH} CACHE STRING "You may add additional search paths here. Use ; to separate multiple paths.")
@@ -369,147 +240,13 @@ SET(CMAKE_INSTALL_PREFIX ${CMAKE_INSTALL_PREFIX} CACHE STRING "Final Installatio
 #set(EXECUTABLE_OUTPUT_PATH ${CMAKE_PREFIX_PATH}/bin)
 #set(INCLUDE_OUTPUT_PATH ${CMAKE_PREFIX_PATH}/include/${LIB_NAME} CACHE STRING "Installation include directory")
 #mark_as_advanced(LIBRARY_OUTPUT_PATH EXECUTABLE_OUTPUT_PATH)
-#set(PlanarTriangulation_LIBRARY_PATH "${LIBRARY_OUTPUT_PATH}")
-#set(PlanarTriangulation_EXECUTABLE_PATH "${EXECUTABLE_OUTPUT_PATH}")
-#set(C_TEST_PATH ${EXECUTABLE_OUTPUT_PATH})
+
 set(M_LIBRARY)
 if(UNIX)
 	set(M_LIBRARY m)
 endif(UNIX)
-# gmp core++ mpfr
 
 set(LIBS_WO_M "${LIBRARIES}")
-ADD_SUBDIRECTORY(Wrapping)
-
 LIST(APPEND LIBRARIES ${M_LIBRARY})
 
-#----------------------------------------------
-#	SWIG WRAPPING PYTHON
-#----------------------------------------------
-#ADD_SUBDIRECTORY(Wrapping)
-
-#set(HFILES
-#	${SOURCE_PATH}/CImg.h
-#	${SOURCE_PATH}/Reader3DS.h
-#	${SOURCE_PATH}/ReaderOSG.h
-#	${SOURCE_PATH}/ReaderPTS.h
-#	${SOURCE_PATH}/ReaderWRL.h
-#	${SOURCE_PATH}/Connectivity.h
-#	${SOURCE_PATH}/Deformer.h
-#	${SOURCE_PATH}/GeometricPrimitives.h
-#	${SOURCE_PATH}/GeometricCompounds.h
-#	${SOURCE_PATH}/Reprojection.h
-#	${SOURCE_PATH}/LodePNG.h
-#	${SOURCE_PATH}/PCA.h
-#	${SOURCE_PATH}/Sampler.h
-#	${SOURCE_PATH}/std_typedefs.h
-#	${SOURCE_PATH}/Texture.h
-#	${SOURCE_PATH}/Vector.h
-#	${SOURCE_PATH}/Writer3DS.h
-#	${SOURCE_PATH}/WriterOSG.h
-#	${SOURCE_PATH}/WriterVTK.h
-#	${SOURCE_PATH}/WriterWRL.h
-#)
-
-set(HFILES
-	${SOURCE_FOLDER}/CImg.h
-	${SOURCE_FOLDER}/CUDAEnv.h
-	${SOURCE_FOLDER}/tree.h
-	${SOURCE_FOLDER}/LodePNG.h
-	${SOURCE_FOLDER}/Log.h
-	${SOURCE_FOLDER}/std_typedefs.h
-	${SOURCE_FOLDER}/DataTree.h
-	${SOURCE_FOLDER}/kDTree.h
-	${SOURCE_FOLDER}/OcTree.h
-	${SOURCE_FOLDER}/OpenMPEnv.h
-	${SOURCE_FOLDER}/QuadTree.h
-	${SOURCE_FOLDER}/ReaderLOD.h
-	${SOURCE_FOLDER}/ReaderPTS.h
-	${SOURCE_FOLDER}/ReaderWRL.h
-        ${SOURCE_FOLDER}/ReaderXYZ.h
-        ${SOURCE_FOLDER}/ReaderXYZi.h
-        ${SOURCE_FOLDER}/ReaderXYZRGB.h
-	${SOURCE_FOLDER}/Connectivity.h
-	${SOURCE_FOLDER}/Deformer.h
-	${SOURCE_FOLDER}/GeometricPrimitives.h
-	${SOURCE_FOLDER}/GeometricCompounds.h
-	${SOURCE_FOLDER}/Reprojection.h
-	${SOURCE_FOLDER}/PCA.h
-	${SOURCE_FOLDER}/Sampler.h
-	${SOURCE_FOLDER}/Texture.h
-	${SOURCE_FOLDER}/Timer_Count.h
-	${SOURCE_FOLDER}/TreeDatasetCombination.h
-	${SOURCE_FOLDER}/Vector.h
-	${SOURCE_FOLDER}/WriterWRL.h
-	${SOURCE_FOLDER}/WriterPTS.h
-	${ADDITIONAL_HEADERS}
-)
-
-set(SOURCES
-	${SOURCE_FOLDER}/CUDAEnv.cpp
-	${SOURCE_FOLDER}/LodePNG.cpp
-	${SOURCE_FOLDER}/Log.cpp
-	${SOURCE_FOLDER}/DataTree.cpp
-	${SOURCE_FOLDER}/kDTree.cpp
-	${SOURCE_FOLDER}/OcTree.cpp
-	${SOURCE_FOLDER}/OpenMPEnv.cpp
-	${SOURCE_FOLDER}/QuadTree.cpp
-	${SOURCE_FOLDER}/ReaderLOD.cpp
-	${SOURCE_FOLDER}/ReaderPTS.cpp
-	${SOURCE_FOLDER}/ReaderWRL.cpp
-        ${SOURCE_FOLDER}/ReaderXYZ.cpp
-        ${SOURCE_FOLDER}/ReaderXYZi.cpp
-        ${SOURCE_FOLDER}/ReaderXYZRGB.cpp
-	${SOURCE_FOLDER}/Connectivity.cpp
-	${SOURCE_FOLDER}/Deformer.cpp
-      	${SOURCE_FOLDER}/GeometricPrimitives.cpp
-	${SOURCE_FOLDER}/GeometricCompounds.cpp
-	${SOURCE_FOLDER}/Reprojection.cpp
-	${SOURCE_FOLDER}/PCA.cpp
-	${SOURCE_FOLDER}/Sampler.cpp
-	${SOURCE_FOLDER}/Texture.cpp
-	${SOURCE_FOLDER}/Timer_Count.cpp
-	${SOURCE_FOLDER}/TreeDatasetCombination.cpp
-	${SOURCE_FOLDER}/Vector.cpp
-	${SOURCE_FOLDER}/WriterWRL.cpp
-	${SOURCE_FOLDER}/WriterPTS.cpp
-	${ADDITIONAL_SOURCES}
-)
-
-
-include_directories(${INCLUDE_DIRS} ${CMAKE_INCLUDE_PATH})
-link_directories(${ComputerGraphicsElementsLibrary_SOURCE_DIR} ${ADDITIONAL_LIBRARY_PATHS} ${CMAKE_BINARY_DIR})
-
-if(CUDA_FOUND)
-  if(CUDA_USE_CUDA_BUILD MATCHES ON)
-    message("CUDA FOUND")
-    list(APPEND SOURCES ${CUDA_SOURCES})
-    CUDA_ADD_LIBRARY(${LIB_NAME} ${SOURCES})
-  else(CUDA_USE_CUDA_BUILD MATCHES ON)
-    add_library(${LIB_NAME} ${SOURCES})
-  endif(CUDA_USE_CUDA_BUILD MATCHES ON)
-else(CUDA_FOUND)
-  add_library(${LIB_NAME} ${SOURCES})
-endif(CUDA_FOUND)
-
-#add_executable(${PROGRAM} ${SOURCES})
-#add_library(${LIB_NAME} STATIC ${SOURCES})
-#add_library(${LIB_NAME} ${KERNEL_O} ${SOURCES})
-
-#target_link_libraries(${LIB_NAME} ${LIBRARIES})
-
-#SETUP_LIBRARY(${LIB_NAME})
-#ADD_SUBDIRECTORY(Wrapping)
-
-#message(${CMAKE_INCLUDE_PATH})
-install(FILES ${HFILES} DESTINATION include/CGEL)
-#message(${HFILES})
-#install (TARGETS MathFunctions DESTINATION bin)
-#install(TARGETS ${PROGRAM} RUNTIME DESTINATION bin)
-#message(${LIB_NAME})
-install(FILES ${KERNEL_O} DESTINATION lib)
-install(TARGETS ${LIB_NAME} LIBRARY DESTINATION lib ARCHIVE DESTINATION lib)
-
-#message(${CMAKE_BINARY_DIR})
-message(${CMAKE_INSTALL_PREFIX})
-#message(${CMAKE_INSTALL_PREFIX})
+ADD_SUBDIRECTORY(src)

@@ -12,7 +12,7 @@ cv::Mat distCoeffs;
 bool invert = true;
 uint pnp_method = 0;
 float reprojection_error = 1.0f;
-ratio_inliers = 0.67f;
+float ratio_inliers = 0.67f;
 
 	uint feature_method = 0;
 	float _gamma = 1.0;
@@ -136,9 +136,9 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 		osg::ref_ptr<osg::Program> screenspace = new osg::Program();
 		osg::ref_ptr<osg::Shader> sspace_vshader = new osg::Shader(osg::Shader::VERTEX);
 		osg::ref_ptr<osg::Shader> sspace_fshader = new osg::Shader(osg::Shader::FRAGMENT);
-		sspace_vshader->loadShaderSourceFromFile(geom_base+"shaderGamma.vert");
+		sspace_vshader->loadShaderSourceFromFile("shaderGamma.vert");
 		//sspace_vshader = osg::Shader::readShaderFile(osg::Shader::VERTEX, geom_base+"shaderGamma.vert");
-		sspace_fshader->loadShaderSourceFromFile(geom_base+"shaderGamma.frag");
+		sspace_fshader->loadShaderSourceFromFile("shaderGamma.frag");
 		//sspace_fshader = osg::Shader::readShaderFile(osg::Shader::FRAGMENT, geom_base+"shaderGamma.frag");
 		screenspace->addShader(sspace_vshader);
 		screenspace->addShader(sspace_fshader);
@@ -439,7 +439,7 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 				break;
 			}
 			case 14: {
-				bruteforce = true;
+				_bruteforce = true;
 				detector_additional = new cv::OrbFeatureDetector(500, 1.4, 5, 31, 0, 4, cv::ORB::HARRIS_SCORE, 21);
 				extractor_additional = new cv::OrbDescriptorExtractor();
 				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING, true); // ONLY FOR WTA_K = 2 (std)
@@ -453,7 +453,7 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 				     * @param nOctaves number of octaves covered by the detected keypoints
 				     * @param selectedPairs (optional) user defined selected pairs
 				*/
-				bruteforce = true;
+				_bruteforce = true;
 				detector_additional = new cv::SiftFeatureDetector(numKeyPoints, _siftOctaves, _siftContrastThreshold, _siftEdgeThreshold, _siftSigma);
 				extractor_additional = new cv::FREAK(true, true, _freak_patternsize, _freak_octaves);
 				matcher_additional = new cv::BFMatcher(cv::NORM_HAMMING, true);
@@ -462,6 +462,7 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 			default:
 			{
 				//instantiate detector, extractor, matcher
+				_bruteforce = true;
 				_flann = true;
 				detector = new cv::SiftFeatureDetector(numKeyPoints);
 				extractor = new cv::SiftDescriptorExtractor();
@@ -683,12 +684,12 @@ std::vector<cv::Mat> PoseNPerspective(std::vector<cv::Point2f>& image_keypoints,
 		{
 			tvecs = cv::Mat::zeros(3,1,CV_64FC1);
 			rvecs = cv::Mat::zeros(3,1,CV_64FC1);
-			cv::solvePnPRansac(cv::Mat(object_keypoints), cv::Mat(image_keypoints), cameraMatrix, distCoeffs, rvecs, tvecs, false, 500, reprojection_error, int(controlpoints_images.size()*ratio_inliers), cv::noArray(), CV_ITERATIVE);
+			cv::solvePnPRansac(cv::Mat(object_keypoints), cv::Mat(image_keypoints), cameraMatrix, distCoeffs, rvecs, tvecs, false, 500, reprojection_error, int(image_keypoints.size()*ratio_inliers), cv::noArray(), CV_ITERATIVE);
 			break;
 		}
 		case 4:
 		{
-			cv::solvePnPRansac(cv::Mat(object_keypoints), cv::Mat(image_keypoints), cameraMatrix, distCoeffs, rvecs, tvecs, true, 500, reprojection_error, int(controlpoints_images.size()*ratio_inliers), cv::noArray(), CV_ITERATIVE);
+			cv::solvePnPRansac(cv::Mat(object_keypoints), cv::Mat(image_keypoints), cameraMatrix, distCoeffs, rvecs, tvecs, true, 500, reprojection_error, int(image_keypoints.size()*ratio_inliers), cv::noArray(), CV_ITERATIVE);
 			break;
 		}
 		default:
@@ -750,8 +751,8 @@ int main(int argc, char* argv[])
 	std::string output_folder = "";
 	std::string extension;
 
-	cameraMatrix = cv::Mat:zeros(3,3,CV_64FC1);
-	distCoeffs = cv::Mat::zeros(5, 1, CV_64F1);
+	cameraMatrix = cv::Mat::zeros(3,3,CV_64FC1);
+	distCoeffs = cv::Mat::zeros(5, 1, CV_64FC1);
 
 	//bool single_image = true;
 	std::map<std::string, ImageFileDescriptor> imagefile_list;
@@ -1107,7 +1108,7 @@ int main(int argc, char* argv[])
 	{
 		OCVtoDAT matrix_writer;
 		matrix_writer.SetMatrix(transformMatrices[img_nr]);
-		matrix_writer.SetFileName(_iterator->second.result_matrix_file;);
+		matrix_writer.SetFileName(_iterator->second.result_matrix_file);
 		matrix_writer.write();
 		img_nr++;
 	}

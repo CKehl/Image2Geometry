@@ -35,10 +35,6 @@
 #include "RobustMatcher.h"
 #include "DiscriminativeColorDescriptor.h"
 #include "DCSiftDescriptorExtractor.h"
-#include "Circle.h"
-#include "CirclePairReader.h"
-#include "ConstrainedMatcher.h"
-#include "VotingRegionMatcher.h"
 #include "OneWayRobustMatcher.h"
 
 #include <boost/program_options.hpp>
@@ -80,7 +76,7 @@ void registerImageToGeometry(std::string geometry_path, std::string configuratio
 cv::Mat ReadAndMorphMatrix(std::string _matrixpath, double declination);
 void StorePose(cv::Mat tvec, cv::Mat rvec, std::string _outpath);
 void LevMar_Reimplementation(const CvMat* objectPoints, const CvMat* imagePoints, const CvMat* A, const CvMat* distCoeffs, CvMat* rvec, CvMat* tvec, int useExtrinsicGuess);
-bool solvePnP_reimp(cv::InputArray _opoints, cv::InputArray _ipoints, cv::InputArray _cameraMatrix, cv::InputArray _distCoeffs, cv::OutputArray _rvec, cv::OutputArray _tvec, bool useExtrinsicGuess, int flags)
+bool solvePnP_reimp(cv::InputArray _opoints, cv::InputArray _ipoints, cv::InputArray _cameraMatrix, cv::InputArray _distCoeffs, cv::OutputArray _rvec, cv::OutputArray _tvec, bool useExtrinsicGuess, int flags);
 
 class MatchEntry : public cv::DMatch {
 public:
