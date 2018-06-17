@@ -1,0 +1,60 @@
+﻿Build started 17.06.2018 20:58:47.
+     1>Project "D:\git\Image2Geometry\3rdParty\giflib-5.1.2-windows\windows\vs2010\giflib5.vcxproj" on node 2 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /ZI /nologo /W3 /WX- /Od /Oy- /D WIN32 /D MODULE_API_EXPORTS /D _MS_VISUAL_STUDIO /D _DEBUG /D _WINDOWS /D _USRDLL /D GIFLIB5_EXPORTS /D _WINDLL /D _UNICODE /D UNICODE /Gm /EHsc /RTC1 /MDd /GS /fp:precise /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc120.pdb" /Gd /TC /analyze- /errorReport:prompt ..\..\lib\dgif_lib.c ..\..\lib\egif_lib.c ..\..\lib\gifalloc.c ..\..\lib\gif_err.c ..\..\lib\gif_font.c ..\..\lib\gif_hash.c "..\..\lib\openbsd-reallocarray.c" ..\..\lib\quantize.c
+         quantize.c
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\quantize.c(132): warning C4018: '<' : signed/unsigned mismatch
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\quantize.c(141): warning C4018: '<' : signed/unsigned mismatch
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\quantize.c(152): warning C4244: '=' : conversion from 'long' to 'GifByteType', possible loss of data
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\quantize.c(153): warning C4244: '=' : conversion from 'long' to 'GifByteType', possible loss of data
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\quantize.c(154): warning C4244: '=' : conversion from 'long' to 'GifByteType', possible loss of data
+         openbsd-reallocarray.c
+         gif_hash.c
+         gif_font.c
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\gif_font.c(239): warning C4996: 'strcpy': This function or variable may be unsafe. Consider using strcpy_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 12.0\vc\include\string.h(112) : see declaration of 'strcpy'
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\gif_font.c(240): warning C4996: 'strtok': This function or variable may be unsafe. Consider using strtok_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 12.0\vc\include\string.h(204) : see declaration of 'strtok'
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\gif_font.c(249): warning C4996: 'strtok': This function or variable may be unsafe. Consider using strtok_s instead. To disable deprecation, use _CRT_SECURE_NO_WARNINGS. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 12.0\vc\include\string.h(204) : see declaration of 'strtok'
+         gif_err.c
+         gifalloc.c
+         egif_lib.c
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\egif_lib.c(63): warning C4996: 'open': The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name: _open. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 12.0\vc\include\io.h(336) : see declaration of 'open'
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\egif_lib.c(66): warning C4996: 'open': The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name: _open. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 12.0\vc\include\io.h(336) : see declaration of 'open'
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\egif_lib.c(75): warning C4996: 'close': The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name: _close. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 12.0\vc\include\io.h(326) : see declaration of 'close'
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\egif_lib.c(119): warning C4996: 'fdopen': The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name: _fdopen. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 12.0\vc\include\stdio.h(716) : see declaration of 'fdopen'
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\egif_lib.c(474): warning C4028: formal parameter 2 different from declaration
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\egif_lib.c(879): warning C4028: formal parameter 3 different from declaration
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\egif_lib.c(967): warning C4028: formal parameter 2 different from declaration
+         dgif_lib.c
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\dgif_lib.c(58): warning C4996: 'open': The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name: _open. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 12.0\vc\include\io.h(336) : see declaration of 'open'
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\dgif_lib.c(85): warning C4996: 'close': The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name: _close. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 12.0\vc\include\io.h(326) : see declaration of 'close'
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\dgif_lib.c(99): warning C4996: 'close': The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name: _close. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 12.0\vc\include\io.h(326) : see declaration of 'close'
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\dgif_lib.c(107): warning C4996: 'fdopen': The POSIX name for this item is deprecated. Instead, use the ISO C++ conformant name: _fdopen. See online help for details.
+                 c:\program files (x86)\microsoft visual studio 12.0\vc\include\stdio.h(716) : see declaration of 'fdopen'
+     1>d:\git\image2geometry\3rdparty\giflib-5.1.2-windows\lib\dgif_lib.c(382): warning C4018: '<' : signed/unsigned mismatch
+         Generating Code...
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"..\Debug\giflib5d.dll" /INCREMENTAL /NOLOGO kernel32.lib user32.lib gdi32.lib winspool.lib comdlg32.lib advapi32.lib shell32.lib ole32.lib oleaut32.lib uuid.lib odbc32.lib odbccp32.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"..\Debug\giflib5d.pdb" /SUBSYSTEM:WINDOWS /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"..\Debug\giflib5d.lib" /MACHINE:X86 /DLL Debug\dgif_lib.obj
+         Debug\egif_lib.obj
+         Debug\gifalloc.obj
+         Debug\gif_err.obj
+         Debug\gif_font.obj
+         Debug\gif_hash.obj
+         "Debug\openbsd-reallocarray.obj"
+         Debug\quantize.obj
+            Creating library ..\Debug\giflib5d.lib and object ..\Debug\giflib5d.exp
+         giflib5.vcxproj -> D:\git\Image2Geometry\3rdParty\giflib-5.1.2-windows\windows\vs2010\..\Debug\giflib5d.dll
+     1>Done Building Project "D:\git\Image2Geometry\3rdParty\giflib-5.1.2-windows\windows\vs2010\giflib5.vcxproj" (Build target(s)).
+
+Build succeeded.
+
+Time Elapsed 00:00:00.80

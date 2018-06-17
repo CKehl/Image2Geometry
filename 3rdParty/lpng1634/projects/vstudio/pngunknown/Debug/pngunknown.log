@@ -1,0 +1,13 @@
+﻿Build started 17.06.2018 21:45:51.
+     1>Project "D:\git\Image2Geometry\3rdParty\lpng1634\projects\vstudio\pngunknown\pngunknown.vcxproj" on node 5 (Build target(s)).
+     1>ClCompile:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\CL.exe /c /I"..\..\..\zlib-1.2.11" /I..\..\..\scripts /Zi /nologo /Wall /WX /Od /Oi /Oy- /D WIN32 /D _DEBUG /D _CONSOLE /D PNG_USE_DLL /D _UNICODE /D UNICODE /GF /Gm- /EHsc /RTC1 /MDd /GS /Gy- /fp:precise /fp:except- /Zc:wchar_t /Zc:forScope /Fo"Debug\\" /Fd"Debug\vc120.pdb" /FR"Debug\\" /Gd /TC /wd4255 /wd4668 /wd4710 /wd4711 /wd4746 /wd4820 /wd4996 /analyze- /errorReport:prompt ..\..\..\contrib\libtests\pngunknown.c
+         pngunknown.c
+       Link:
+         C:\Program Files (x86)\Microsoft Visual Studio 12.0\VC\bin\link.exe /ERRORREPORT:PROMPT /OUT:"D:\git\Image2Geometry\3rdParty\lpng1634\projects\vstudio\Debug\pngunknown.exe" /INCREMENTAL:NO /NOLOGO /LIBPATH:D:\git\Image2Geometry\3rdParty\lpng1634\projects\vstudio\Debug\ libpng16.lib /MANIFEST /MANIFESTUAC:"level='asInvoker' uiAccess='false'" /manifest:embed /DEBUG /PDB:"D:\git\Image2Geometry\3rdParty\lpng1634\projects\vstudio\Debug\pngunknown.pdb" /SUBSYSTEM:CONSOLE /TLBID:1 /DYNAMICBASE /NXCOMPAT /IMPLIB:"D:\git\Image2Geometry\3rdParty\lpng1634\projects\vstudio\Debug\pngunknown.lib" /MACHINE:X86 /SAFESEH Debug\pngunknown.obj
+     1>LINK : fatal error LNK1181: cannot open input file 'libpng16.lib'
+     1>Done Building Project "D:\git\Image2Geometry\3rdParty\lpng1634\projects\vstudio\pngunknown\pngunknown.vcxproj" (Build target(s)) -- FAILED.
+
+Build FAILED.
+
+Time Elapsed 00:00:00.30

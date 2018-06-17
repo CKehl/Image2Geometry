@@ -1,0 +1,2 @@
+#TargetFrameworkVersion=v4.0:PlatformToolSet=v120:EnableManagedIncrementalBuild=false:VCToolArchitecture=Native32Bit
+Release|Win32|D:\git\Image2Geometry\3rdParty\zlib-1.2.11\contrib\vstudio\vc12\|
