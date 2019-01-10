@@ -1,7 +1,0 @@
-giflib for Windows/Visual studio
-================================
-* outputs are saved into Release, Debug directories in this folder.
-* Use uitl\buildall.bat to build all samples into the bin directory.
-
--Issam Ali <http://issamsoft.com>
-
