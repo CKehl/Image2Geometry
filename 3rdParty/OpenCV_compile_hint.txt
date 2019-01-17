@@ -1,0 +1,2 @@
+https://github.com/opencv/opencv/issues/12168
+https://github.com/opencv/opencv/releases/tag/2.4.13.6

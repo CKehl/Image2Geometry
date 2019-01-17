@@ -1,0 +1,4 @@
+https://gitlab.kitware.com/vtk/vtk/issues/16999#note_292574
+https://github.com/opencv/opencv/blob/b39cd06249213220e802bb64260727711d9fc98c/3rdparty/libjasper/jas_malloc.c#L106
+https://github.com/opencv/ade/blob/b9ff79779b552c4e20234fb47f1533d1d1657970/sources/ade/source/alloc.cpp#L39
+https://github.com/opencv/opencv/issues/12831

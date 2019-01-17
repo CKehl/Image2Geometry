@@ -1,0 +1,5 @@
+https://stackoverflow.com/questions/9946322/how-to-generate-an-import-library-lib-file-from-a-dll/53838952#53838952
+https://dev.my-gate.net/2018/06/02/generate-a-def-file-from-a-dll/
+https://stackoverflow.com/questions/47541722/create-msvc-import-library-with-mingw-tools
+http://mingw.org/wiki/MSVC_and_MinGW_DLLs
+https://adrianhenke.wordpress.com/2008/12/05/create-lib-file-from-dll/

@@ -1,0 +1,2 @@
+http://www.gaia-gis.it/spatialite-2.4.0-3/mingw_how_to.html
+https://zami0xzami.wordpress.com/2016/03/16/building-opencv-using-mingw-on-windows/
