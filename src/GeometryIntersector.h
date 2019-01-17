@@ -25,7 +25,7 @@
 
 struct MyReadCallback : public osgUtil::IntersectionVisitor::ReadCallback
 {
-#if((OSG_VERSION_MAJOR >= 3) && (OSG_VERSION_MINOR >=3))
+#if((OSG_VERSION_MAJOR >= 3) && (OSG_VERSION_MINOR >=4))
     virtual osg::ref_ptr<osg::Node> readNodeFile(const std::string& filename)
 #else
 	virtual osg::Node* readNodeFile(const std::string& filename)

@@ -95,16 +95,17 @@ bool OneWayRobustMatcher::trim(const std::vector<cv::DMatch>& matches_in, std::v
 {
 	if(matches_in.empty())
 		return false;
-	std::sort(matches_in.begin(), matches_in.end(), CompareQueryID);
+	std::vector<cv::DMatch>& nconst_matches_in = const_cast<std::vector<cv::DMatch>&>(matches_in);
+	std::sort(nconst_matches_in.begin(), nconst_matches_in.end(), CompareQueryID);
 	uint _iterator = 1;
-	int _currentId = matches_in.at(0).queryIdx;
+	int _currentId = nconst_matches_in.at(0).queryIdx;
 	int found = false;
-	while(_iterator < matches_in.size())
+	while(_iterator < nconst_matches_in.size())
 	{
-		if(matches_in.at(_iterator).queryIdx != _currentId)
+		if(nconst_matches_in.at(_iterator).queryIdx != _currentId)
 		{
-			matches_out.push_back(matches_in.at(_iterator-1));
-			_currentId = matches_in.at(_iterator).queryIdx;
+			matches_out.push_back(nconst_matches_in.at(_iterator-1));
+			_currentId = nconst_matches_in.at(_iterator).queryIdx;
 			found = false;
 		}
 		else
@@ -124,17 +125,18 @@ bool OneWayRobustMatcher::RemoveDistractors(const std::vector<cv::DMatch>& match
 	if(matches.empty())
 		return false;
 
-	std::sort(matches.begin(), matches.end(), CompareTrainID);
+	std::vector<cv::DMatch>& nconst_matches = const_cast<std::vector<cv::DMatch>&>(matches);
+	std::sort(nconst_matches.begin(), nconst_matches.end(), CompareTrainID);
 	uint _iterator = 1;
-	int _currentId = matches.at(0).trainIdx;
+	int _currentId = nconst_matches.at(0).trainIdx;
 	int found = false;
-	while(_iterator < matches.size())
+	while(_iterator < nconst_matches.size())
 	{
-		if(matches.at(_iterator).trainIdx != _currentId)
+		if(nconst_matches.at(_iterator).trainIdx != _currentId)
 		{
 			if(!found)
-				outMatches.push_back(matches.at(_iterator-1));
-			_currentId = matches.at(_iterator).trainIdx;
+				outMatches.push_back(nconst_matches.at(_iterator-1));
+			_currentId = nconst_matches.at(_iterator).trainIdx;
 			found = false;
 		}
 		else
@@ -153,10 +155,11 @@ cv::Mat OneWayRobustMatcher::ransacTest(const std::vector< std::vector<cv::DMatc
 	std::vector<cv::Point2f> points1, points2;
 	cv::Mat fundemental;
 	for (std::vector< std::vector<cv::DMatch>>:: const_iterator it= matches.begin(); it!= matches.end(); ++it) {
-		subitemsize = it->size();
-		for(uint subiterator = 0; subiterator < (it->size()); subiterator++)
-		{
-			cv::DMatch* subitem = &(it->at(subiterator));
+		//subitemsize = it->size();
+		//for(uint subiterator = 0; subiterator < (it->size()); subiterator++)
+		for (std::vector<cv::DMatch>::const_iterator sub_it= (*it).begin(); sub_it!= (*it).end(); ++sub_it) {
+			//cv::DMatch* subitem = &(it->at(subiterator));
+			const cv::DMatch* subitem = &(*sub_it);
 
 			// Get the position of left keypoints
 			float x= keypoints1[subitem->queryIdx].pt.x;

@@ -16,6 +16,7 @@
 
 #include <osg/Switch>
 #include <osgText/Text>
+//#include <osg/BufferObject>
 
 #include <osgViewer/Viewer>
 #include <osgViewer/ViewerEventHandlers>
@@ -28,8 +29,10 @@
 #include <osgGA/AnimationPathManipulator>
 #include <osgGA/TerrainManipulator>
 
-#include <osg/GLExtensions>
+//#include <osg/GLExtensions>
 #include <osg/BufferObject>
+#include <osg/GLExtensions>
+#include <osg/Version>
 
 #include <iostream>
 #include <sstream>
@@ -144,13 +147,13 @@ class WindowCaptureCallback : public osg::Camera::DrawCallback
 
             inline void read()
             {
-#if((OPENSCENEGRAPH_MAJOR_VERSION >= 3) && (OPENSCENEGRAPH_MINOR_VERSION > 3))
+#if((OPENSCENEGRAPH_MAJOR_VERSION >= 3) && (OPENSCENEGRAPH_MINOR_VERSION > 1))
             	osg::GLExtensions* ext = osg::GLExtensions::Get(_gc->getState()->getContextID(),true);
 #else
                 osg::GLBufferObject::Extensions* ext = osg::GLBufferObject::getExtensions(_gc->getState()->getContextID(),true);
 #endif
 
-#if((OPENSCENEGRAPH_MAJOR_VERSION >= 3) && (OPENSCENEGRAPH_MINOR_VERSION > 3))
+#if((OPENSCENEGRAPH_MAJOR_VERSION >= 3) && (OPENSCENEGRAPH_MINOR_VERSION > 1))
                 if (ext->isPBOSupported && !_pboBuffer.empty())
 #else
                 if (ext->isPBOSupported() && !_pboBuffer.empty())
@@ -182,7 +185,7 @@ class WindowCaptureCallback : public osg::Camera::DrawCallback
             	return NULL;
             }
 
-#if((OPENSCENEGRAPH_MAJOR_VERSION >= 3) && (OPENSCENEGRAPH_MINOR_VERSION > 3))
+#if((OPENSCENEGRAPH_MAJOR_VERSION >= 3) && (OPENSCENEGRAPH_MINOR_VERSION > 1))
             void singlePBO(osg::GLExtensions* ext);
             void multiPBO(osg::GLExtensions* ext);
 #else

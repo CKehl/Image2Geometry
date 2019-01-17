@@ -33,6 +33,8 @@
 # define _CRT_SECURE_NO_WARNINGS
 #endif
 
+#include "std_typedefs.h"
+
 inline std::string type2str(int type) {
   std::string r;
 

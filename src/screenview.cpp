@@ -107,7 +107,7 @@ void WindowCaptureCallback::ContextData::readPixels()
     _currentPboIndex = nextPboIndex;
 }
 
-#if((OPENSCENEGRAPH_MAJOR_VERSION >= 3) && (OPENSCENEGRAPH_MINOR_VERSION > 3))
+#if((OPENSCENEGRAPH_MAJOR_VERSION >= 3) && (OPENSCENEGRAPH_MINOR_VERSION > 1))
 void WindowCaptureCallback::ContextData::singlePBO(osg::GLExtensions* ext)
 #else
 void WindowCaptureCallback::ContextData::singlePBO(osg::GLBufferObject::Extensions* ext)
@@ -198,7 +198,7 @@ void WindowCaptureCallback::ContextData::singlePBO(osg::GLBufferObject::Extensio
     _currentImageIndex = nextImageIndex;
 }
 
-#if((OPENSCENEGRAPH_MAJOR_VERSION >= 3) && (OPENSCENEGRAPH_MINOR_VERSION > 3))
+#if((OPENSCENEGRAPH_MAJOR_VERSION >= 3) && (OPENSCENEGRAPH_MINOR_VERSION > 1))
 void WindowCaptureCallback::ContextData::multiPBO(osg::GLExtensions* ext)
 #else
 void WindowCaptureCallback::ContextData::multiPBO(osg::GLBufferObject::Extensions* ext)
