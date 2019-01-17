@@ -2,7 +2,9 @@
 Implementation of PHOR paper image-to-geometry registration method in C++ on common desktop computers for result replication.
 
 # Disclaimer
-This repository is **not** containing the "Geological Registration and Interpretation Toolset" (GRIT) for mobile devices, as that software is kind-of behind a paywall from petroleum industry consortium funding institutions and companies - sorry to disappoint, but I have little hope this will *ever* get public.
+This repository is **not** containing the "Geological Registration and Interpretation Toolset" (GRIT) for mobile devices, as that software is kind-of 
+behind a paywall (shared IP) from a petroleum industry consortium (SAFARI, FORCE) funding institutions and companies - sorry to disappoint, but I have 
+little hope the mobile app "GRIT" will *ever* get public.
 
 This repository only includes the specific image-to-geometry registration method published openly in "The Photogrammetric Record" (volume 32, issue 158) 
 and in the ISPRS Annals (volume 3, issue 2) and related academic publications (see CITATION.md). As such, and as part of an also publically-funded 
