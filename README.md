@@ -13,10 +13,10 @@ device cameras. The code is *just* a simple and straight end-to-end implementati
 improvement. It is given as-is without guarantees or liability of any sort - experiment on you own duty with it.
 
 The code is checked to compile and work in the following systems:
-Ubuntu 12.0.5 - gcc 3.49
-Ubuntu 14.04 - gcc 4.9
-Ubuntu 18.04 - gcc 8.1
-MinGW 64 (requiring you to have the necessary thrird-party libraries somewhere) - gcc-8.1
+* Ubuntu 12.0.5 - gcc 3.49
+* Ubuntu 14.04 - gcc 4.9
+* Ubuntu 18.04 - gcc 8.1
+* MinGW 64 (requiring you to have the necessary thrird-party libraries somewhere) - gcc-8.1
 
 The code as-is will **not** compile in Visual Studio (vc compiler - any version), as we use high-density linear algebra packages. The configuration has 
 been tested and it breaks due to the lack of a .lib/.dll generation from armadillo, which this build requires.
